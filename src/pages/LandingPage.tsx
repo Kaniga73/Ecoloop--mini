@@ -5,8 +5,9 @@ import { Header } from "../components/common/Header";
 import { ListingDetailPage } from "./ListingDetailPage";
 import { DashboardPage } from "./DashboardPage";
 import { ListWasteModal } from "../components/common/ListWasteModal";
+import { MakeOfferModal } from "../components/common/MakeOfferModal";
 import { PurchaseRecord } from "../components/common/DashboardView";
-import { initialListings, currentUserProfiles, initialPurchases } from "../data/mockListings";
+import { initialListings, currentUserProfiles } from "../data/mockListings";
 import { WasteListing, UserProfile, AuthView } from "../types";
 import { useAuth } from "../hooks/useAuth";
 import { Search } from "lucide-react";
@@ -26,9 +27,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 }) => {
   const { logout, profile, user } = useAuth();
 
-  // State management
+  // State management — purchases start empty [] by default until buyer purchases real items
   const [allListings, setAllListings] = useState<WasteListing[]>(propListings || initialListings);
-  const [purchases, setPurchases] = useState<PurchaseRecord[]>(initialPurchases);
+  const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
   const [activeTab, setActiveTab] = useState<"marketplace" | "dashboard" | "messages" | "list-waste">("marketplace");
   const [selectedCategory, setSelectedCategory] = useState<string>("All Categories");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -42,6 +43,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   // List Waste Modal state
   const [isListWasteModalOpen, setIsListWasteModalOpen] = useState(false);
   const [editingListing, setEditingListing] = useState<WasteListing | null>(null);
+
+  // Make Offer Modal state
+  const [isMakeOfferModalOpen, setIsMakeOfferModalOpen] = useState(false);
+  const [offerListing, setOfferListing] = useState<WasteListing | null>(null);
 
   // Active user representation (fallback to mock profiles if custom DB profile missing)
   const activeUser: UserProfile = useMemo(() => {
@@ -94,7 +99,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     setSortBy("newest");
   };
 
-  // Listing CRUD actions
+  // Listing CRUD actions (Sell / List Waste)
   const handleOpenListWaste = () => {
     setEditingListing(null);
     setIsListWasteModalOpen(true);
@@ -146,6 +151,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     }
   };
 
+  // Buyer Purchasing / Make Offer flow
+  const handleOpenMakeOffer = (listing: WasteListing) => {
+    setOfferListing(listing);
+    setIsMakeOfferModalOpen(true);
+  };
+
+  const handleSubmitOffer = (listing: WasteListing, quantity: number, pricePerUnit: number) => {
+    const newPurchase: PurchaseRecord = {
+      id: `pur-${Date.now()}`,
+      productTitle: listing.title,
+      category: listing.category,
+      quantity,
+      unit: listing.unit,
+      amount: quantity * pricePerUnit,
+      currency: listing.currency || "₹",
+      status: "Pending",
+      orderedDate: new Date().toISOString().split("T")[0],
+      image: listing.images[0],
+    };
+    setPurchases((prev) => [newPurchase, ...prev]);
+  };
+
   // Filtered & Sorted listings for Marketplace
   const filteredListings = useMemo(() => {
     let result = [...allListings];
@@ -192,7 +219,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     return result;
   }, [allListings, selectedCategory, searchQuery, locationQuery, maxPrice, sortBy]);
 
-  // If a listing is selected, render ListingDetailPage with LocationMap
+  // If a listing is selected, render ListingDetailPage
   if (selectedListing) {
     return (
       <div className="min-h-screen bg-[#FBFBFA] w-full">
@@ -214,7 +241,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           listing={selectedListing}
           onBack={() => setSelectedListing(null)}
           onStartChat={(item) => alert(`Chat started with seller for ${item.title}`)}
-          onOpenMakeOffer={(item) => alert(`Offer form opened for ${item.title}`)}
+          onOpenMakeOffer={handleOpenMakeOffer}
           isFavorite={favorites.has(selectedListing.id)}
           onToggleFavorite={(id) => handleToggleFavorite(id)}
           currentUser={activeUser}
@@ -225,6 +252,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           onSubmit={handleSubmitListing}
           currentUser={activeUser}
           initialListing={editingListing}
+        />
+        <MakeOfferModal
+          isOpen={isMakeOfferModalOpen}
+          onClose={() => setIsMakeOfferModalOpen(false)}
+          onSubmitOffer={handleSubmitOffer}
+          listing={offerListing}
+          currentUser={activeUser}
         />
       </div>
     );
@@ -350,13 +384,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         )}
       </main>
 
-      {/* List Waste Modal */}
+      {/* Modals */}
       <ListWasteModal
         isOpen={isListWasteModalOpen}
         onClose={() => setIsListWasteModalOpen(false)}
         onSubmit={handleSubmitListing}
         currentUser={activeUser}
         initialListing={editingListing}
+      />
+      <MakeOfferModal
+        isOpen={isMakeOfferModalOpen}
+        onClose={() => setIsMakeOfferModalOpen(false)}
+        onSubmitOffer={handleSubmitOffer}
+        listing={offerListing}
+        currentUser={activeUser}
       />
     </div>
   );
