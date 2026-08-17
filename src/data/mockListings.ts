@@ -202,3 +202,31 @@ export const initialMessages: Record<string, ChatMessage[]> = {
     },
   ],
 };
+
+export const initialPurchases = [
+  {
+    id: "pur-1",
+    productTitle: "Bright Bare Copper Wire Scrap (99.9% Milberry) - 2 Tons",
+    category: "Scrap Metal",
+    quantity: 2,
+    unit: "Ton",
+    amount: 1480000,
+    currency: "₹",
+    status: "Completed" as const,
+    orderedDate: "2026-08-10",
+    image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&auto=format&fit=crop&q=80",
+  },
+  {
+    id: "pur-2",
+    productTitle: "Baled Clear PET Plastic Flakes - 5 Tons",
+    category: "Industrial Plastics",
+    quantity: 5,
+    unit: "Ton",
+    amount: 190000,
+    currency: "₹",
+    status: "Shipped" as const,
+    orderedDate: "2026-08-14",
+    image: "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=400&auto=format&fit=crop&q=80",
+  },
+];
+

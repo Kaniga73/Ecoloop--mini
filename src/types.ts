@@ -185,3 +185,21 @@ export interface ChatMessage {
   text: string;
   timestamp: string;
 }
+
+export interface DealOffer {
+  id: string;
+  listingId: string;
+  listingTitle: string;
+  buyerId: string;
+  buyerName: string;
+  sellerId: string;
+  sellerName: string;
+  offeredPricePerUnit: number;
+  quantity: number;
+  unit: string;
+  totalAmount: number;
+  currency: string;
+  status: 'Pending' | 'Accepted' | 'Rejected' | 'Countered' | 'Completed';
+  createdAt: string;
+}
+
