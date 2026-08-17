@@ -246,13 +246,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           onToggleFavorite={(id) => handleToggleFavorite(id)}
           currentUser={activeUser}
         />
-        <ListWasteModal
-          isOpen={isListWasteModalOpen}
-          onClose={() => setIsListWasteModalOpen(false)}
-          onSubmit={handleSubmitListing}
-          currentUser={activeUser}
-          initialListing={editingListing}
-        />
+        {/* ListWasteModal temporarily removed */}
         <MakeOfferModal
           isOpen={isMakeOfferModalOpen}
           onClose={() => setIsMakeOfferModalOpen(false)}
@@ -286,7 +280,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             listings={allListings}
             currentUser={activeUser}
             onOpenListing={(listing) => setSelectedListing(listing)}
-            onOpenListWaste={handleOpenListWaste}
             onNavigateToMessages={() => setActiveTab("messages")}
             onViewContract={(offer) => alert(`View contract for ${offer.listingTitle}`)}
             purchases={purchases}

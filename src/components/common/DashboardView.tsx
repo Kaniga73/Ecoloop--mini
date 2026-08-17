@@ -28,7 +28,7 @@ interface DashboardViewProps {
   listings: WasteListing[];
   currentUser: UserProfile;
   onOpenListing: (listing: WasteListing) => void;
-  onOpenListWaste: () => void;
+  onOpenListWaste?: () => void;
   onNavigateToMessages: () => void;
   onViewContract?: (offer: DealOffer) => void;
   purchases?: PurchaseRecord[];
