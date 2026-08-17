@@ -5,6 +5,8 @@ import { AuthLayout } from './components/auth/AuthLayout';
 import { SigninPage } from './pages/SigninPage';
 import { SignupPage } from './pages/SignupPage';
 import { EmailVerificationPage } from './pages/EmailVerificationPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { LandingPage } from './pages/LandingPage';
 import { ToastContainer, ToastMessage } from './components/common/Toast';
 import { AnimatePresence } from 'motion/react';
@@ -77,6 +79,23 @@ function MainAuthApp() {
     );
   }
 
+  // Authenticated app shell — rendered full-bleed, NOT wrapped in AuthLayout
+  // (AuthLayout centers/caps its children for login-style cards, which
+  // would otherwise box in the full marketplace page)
+  if (isAuthenticated && currentView === 'home') {
+    return (
+      <>
+        <LandingPage
+          key="home-view"
+          onLogoutToast={(msg) => addToast(msg, 'info')}
+          onNavigateToAuth={(v) => handleNavigate(v)}
+        />
+        <ToastContainer toasts={toasts} onDismiss={removeToast} />
+      </>
+    );
+  }
+
+  // Unauthenticated flows — centered auth card layout
   return (
     <AuthLayout>
       <AnimatePresence mode="wait">
@@ -117,14 +136,6 @@ function MainAuthApp() {
             key="reset-password-view"
             onNavigate={(v) => handleNavigate(v)}
             onSuccessToast={(msg) => addToast(msg, 'success')}
-          />
-        )}
-
-        {currentView === 'home' && (
-          <LandingPage
-            key="home-view"
-            onLogoutToast={(msg) => addToast(msg, 'info')}
-            onNavigateToAuth={(v) => handleNavigate(v)}
           />
         )}
       </AnimatePresence>

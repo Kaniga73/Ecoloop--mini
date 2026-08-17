@@ -1,40 +1,277 @@
-import React from 'react';
-import { motion } from 'motion/react';
-import { LogOut } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
+import React, { useState, useMemo } from "react";
+import { SidebarFilter } from "../components/common/SidebarFilter";
+import { ListingCard } from "../components/common/ListingCard";
+import { Header } from "../components/common/Header";
+import { ListingDetailPage } from "./ListingDetailPage";
+import { initialListings, currentUserProfiles } from "../data/mockListings";
+import { WasteListing, UserProfile, AuthView } from "../types";
+import { useAuth } from "../hooks/useAuth";
+import { Search, Plus } from "lucide-react";
 
 interface LandingPageProps {
   onLogoutToast?: (msg: string) => void;
-  onNavigateToAuth?: (view: 'login' | 'signup') => void;
+  onNavigateToAuth?: (view: AuthView) => void;
+  listings?: WasteListing[];
+  isLoadingListings?: boolean;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onLogoutToast, onNavigateToAuth }) => {
-  const { logout } = useAuth();
+export const LandingPage: React.FC<LandingPageProps> = ({
+  onLogoutToast,
+  onNavigateToAuth,
+  listings: propListings,
+  isLoadingListings = false,
+}) => {
+  const { logout, profile, user } = useAuth();
+
+  // State management
+  const [allListings] = useState<WasteListing[]>(propListings || initialListings);
+  const [activeTab, setActiveTab] = useState<"marketplace" | "dashboard" | "messages" | "list-waste">("marketplace");
+  const [selectedCategory, setSelectedCategory] = useState<string>("All Categories");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [locationQuery, setLocationQuery] = useState<string>("");
+  const [maxPrice, setMaxPrice] = useState<number>(1000000);
+  const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc" | "quantity">("newest");
+  const [selectedListing, setSelectedListing] = useState<WasteListing | null>(null);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [currentUserIndex, setCurrentUserIndex] = useState<number>(0);
+
+  // Active user representation (fallback to mock profiles if custom DB profile missing)
+  const activeUser: UserProfile = useMemo(() => {
+    if (profile) {
+      return {
+        id: profile.auth_user_id || user?.id || "user-1",
+        name: profile.full_name || user?.email?.split("@")[0] || "EcoLoop User",
+        company: (profile as any).business_name || "EcoLoop Partner",
+        role: (profile as any).account_type || "individual",
+        email: profile.email || user?.email || "",
+        location: `${profile.city || "Chennai"}, ${profile.state || "Tamil Nadu"}`,
+        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+      };
+    }
+    return currentUserProfiles[currentUserIndex] || currentUserProfiles[0];
+  }, [profile, user, currentUserIndex]);
+
+  const handleSwitchUser = () => {
+    setCurrentUserIndex((prev) => (prev + 1) % currentUserProfiles.length);
+  };
 
   const handleLogout = async () => {
-    await logout();
-    if (onLogoutToast) {
-      onLogoutToast('You have been securely signed out.');
-    }
-    if (onNavigateToAuth) {
-      onNavigateToAuth('login');
+    try {
+      await logout();
+      if (onLogoutToast) onLogoutToast("Signed out successfully.");
+      if (onNavigateToAuth) onNavigateToAuth("login");
+    } catch (err) {
+      console.error("Logout error:", err);
     }
   };
 
+  const handleToggleFavorite = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleResetFilters = () => {
+    setSelectedCategory("All Categories");
+    setSearchQuery("");
+    setLocationQuery("");
+    setMaxPrice(1000000);
+    setSortBy("newest");
+  };
+
+  // Filtered & Sorted listings
+  const filteredListings = useMemo(() => {
+    let result = [...allListings];
+
+    if (selectedCategory !== "All Categories") {
+      result = result.filter(
+        (item) => item.category.toLowerCase() === selectedCategory.toLowerCase()
+      );
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        (item) =>
+          item.title.toLowerCase().includes(query) ||
+          item.description.toLowerCase().includes(query) ||
+          item.category.toLowerCase().includes(query) ||
+          item.location.city.toLowerCase().includes(query)
+      );
+    }
+
+    if (locationQuery.trim()) {
+      const locQuery = locationQuery.toLowerCase().trim();
+      result = result.filter(
+        (item) =>
+          item.location.city.toLowerCase().includes(locQuery) ||
+          item.location.stateOrCountry.toLowerCase().includes(locQuery) ||
+          (item.location.industrialPark && item.location.industrialPark.toLowerCase().includes(locQuery))
+      );
+    }
+
+    if (maxPrice < 1000000) {
+      result = result.filter((item) => item.pricePerUnit <= maxPrice);
+    }
+
+    if (sortBy === "price-asc") {
+      result.sort((a, b) => a.pricePerUnit - b.pricePerUnit);
+    } else if (sortBy === "price-desc") {
+      result.sort((a, b) => b.pricePerUnit - a.pricePerUnit);
+    } else if (sortBy === "quantity") {
+      result.sort((a, b) => b.totalQuantity - a.totalQuantity);
+    }
+
+    return result;
+  }, [allListings, selectedCategory, searchQuery, locationQuery, maxPrice, sortBy]);
+
+  // If a listing is selected, render ListingDetailPage with LocationMap
+  if (selectedListing) {
+    return (
+      <div className="min-h-screen bg-[#FBFBFA] w-full">
+        <Header
+          activeTab={activeTab}
+          setActiveTab={(tab) => {
+            setSelectedListing(null);
+            setActiveTab(tab);
+          }}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onOpenListWaste={() => alert("List Waste Modal")}
+          currentUser={activeUser}
+          onSwitchUser={handleSwitchUser}
+          unreadCount={1}
+          onLogout={handleLogout}
+        />
+        <ListingDetailPage
+          listing={selectedListing}
+          onBack={() => setSelectedListing(null)}
+          onStartChat={(item) => alert(`Chat with seller for ${item.title}`)}
+          onOpenMakeOffer={(item) => alert(`Make offer for ${item.title}`)}
+          isFavorite={favorites.has(selectedListing.id)}
+          onToggleFavorite={(id) => handleToggleFavorite(id)}
+          currentUser={activeUser}
+        />
+      </div>
+    );
+  }
+
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="w-full max-w-4xl mx-auto px-4 sm:px-6 flex flex-col items-center justify-center min-h-[50vh]"
-    >
-      <button
-        onClick={handleLogout}
-        className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition-colors text-slate-700 font-medium"
-      >
-        <LogOut className="w-5 h-5" />
-        Sign Out
-      </button>
-    </motion.div>
+    <div className="min-h-screen bg-[#FBFBFA] w-full flex flex-col">
+      {/* Top sticky Header with Brand Logo, Navigation, Search, Profile, & Logout Button */}
+      <Header
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onOpenListWaste={() => alert("List Waste feature clicked")}
+        currentUser={activeUser}
+        onSwitchUser={handleSwitchUser}
+        unreadCount={1}
+        onLogout={handleLogout}
+      />
+
+      {/* Main Container — full width, padding instead of max-w cap */}
+      <main id="landing-page" className="flex-1 w-full px-4 sm:px-6 lg:px-10 py-6 space-y-6">
+        {/* Content Row: Sidebar Filter & Listings Grid */}
+        <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
+          {/* Left Sidebar Filter */}
+         
+            <SidebarFilter
+              selectedCategory={selectedCategory}
+              onSelectCategory={setSelectedCategory}
+              locationQuery={locationQuery}
+              onLocationChange={setLocationQuery}
+              maxPrice={maxPrice}
+              onMaxPriceChange={setMaxPrice}
+              onResetFilters={handleResetFilters}
+            />
+          
+
+          {/* Listings Grid Area */}
+          <div className="flex-1 min-w-0 w-full space-y-4">
+            {/* Top Control Bar */}
+            <div className="bg-white rounded-2xl border border-neutral-200/90 px-5 py-3.5 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="text-xs sm:text-sm text-neutral-600 shrink-0">
+                Showing{" "}
+                <strong className="text-neutral-900 font-bold">
+                  {filteredListings.length}
+                </strong>{" "}
+                waste listings in Tamil Nadu
+                {selectedCategory !== "All Categories" && (
+                  <span className="ml-1 text-emerald-800 font-medium">
+                    • {selectedCategory}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-neutral-500">Sort:</span>
+                  <select
+                    id="sort-listings-select"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="text-xs font-semibold bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 text-neutral-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                  >
+                    <option value="newest">Newest First</option>
+                    <option value="price-asc">Price: Low to High</option>
+                    <option value="price-desc">Price: High to Low</option>
+                    <option value="quantity">Largest Quantity</option>
+                  </select>
+                </div>
+
+                 
+              </div>
+            </div>
+
+            {/* Listings Cards Grid */}
+            {isLoadingListings ? (
+              <div className="p-16 text-center text-neutral-400">
+                <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                <p className="text-sm font-medium">Loading marketplace listings...</p>
+              </div>
+            ) : filteredListings.length === 0 ? (
+              <div className="bg-white rounded-3xl border border-neutral-200 p-12 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-neutral-100 text-neutral-400 flex items-center justify-center mx-auto">
+                  <Search className="w-6 h-6" />
+                </div>
+                <h3 className="text-base font-bold text-neutral-900">
+                  No matching waste listings found
+                </h3>
+                <p className="text-xs text-neutral-500 max-w-sm mx-auto">
+                  Try changing your category filter or clearing your location search.
+                </p>
+                <button
+                  onClick={handleResetFilters}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition-colors cursor-pointer"
+                >
+                  Reset All Filters
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
+                {filteredListings.map((listing) => (
+                  <ListingCard
+                    key={listing.id}
+                    listing={listing}
+                    onSelect={(item) => setSelectedListing(item)}
+                    isFavorite={favorites.has(listing.id)}
+                    onToggleFavorite={(id, e) => handleToggleFavorite(id, e)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+    </div>
   );
 };

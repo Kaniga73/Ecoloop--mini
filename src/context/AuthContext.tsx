@@ -241,6 +241,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const sendPasswordResetEmail = useCallback(async () => { return { success: false } }, []);
   const updatePassword = useCallback(async () => { return { success: false } }, []);
 
+  const refreshSession = useCallback(async () => {
+    try {
+      if (!supabase) return;
+      const { data: { session: sbSession } } = await supabase.auth.refreshSession();
+      if (sbSession) {
+        const authUser: AuthUser = {
+          id: sbSession.user.id,
+          email: sbSession.user.email || '',
+          email_confirmed_at: sbSession.user.email_confirmed_at || null,
+          user_metadata: sbSession.user.user_metadata || {},
+          app_metadata: sbSession.user.app_metadata || {},
+          created_at: sbSession.user.created_at,
+        };
+        const mappedSession: AuthSession = {
+          access_token: sbSession.access_token,
+          refresh_token: sbSession.refresh_token,
+          expires_at: sbSession.expires_at || Math.floor(Date.now() / 1000) + 7 * 24 * 3600,
+          expires_in: sbSession.expires_in || 3600,
+          token_type: sbSession.token_type,
+          user: authUser,
+        };
+        setSession(mappedSession);
+        setUser(authUser);
+      }
+    } catch (err) {
+      console.error('refreshSession error:', err);
+    }
+  }, []);
+
   const isAuthenticated = Boolean(user && session);
   const isEmailVerified = Boolean(user?.email_confirmed_at);
 
@@ -261,6 +290,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     resendVerificationEmail,
     setPendingVerificationEmail: updatePendingEmail,
     verifyEmailOtp,
+    refreshSession,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
