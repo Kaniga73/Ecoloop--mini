@@ -205,27 +205,16 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.25 }}
-      className="w-full max-w-[560px] mx-auto px-0 sm:px-2"
+      className="w-full max-w-[480px] mx-auto px-0 sm:px-2"
       id="signup-page-container"
     >
-      <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-[0_4px_24px_-4px_rgba(15,23,42,0.06)] p-4 sm:p-5">
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-[0_4px_24px_-4px_rgba(15,23,42,0.06)] p-5 sm:p-6">
         {/* Header */}
         <div className="text-center mb-3">
           <div className="flex justify-center mb-3">
             <EcoLoopLogo size="md" />
           </div>
-          <h1 className="text-[13px] sm:text-[13px] font-bold text-slate-900 tracking-normal font-sans tracking-normal">
-            {currentStep === 0
-              ? 'Join EcoLoop'
-              : accountType === 'business'
-              ? 'Create Business Account'
-              : 'Create Individual Account'}
-          </h1>
-          <p className="text-[13px] sm:text-[13px] text-slate-500 mt-1">
-            {currentStep === 0
-              ? 'One account to buy, sell, and participate in circular trade.'
-              : `Step ${currentStep} of ${totalSteps}`}
-          </p>
+          
         </div>
 
         {/* Multi-step progress bar (if step > 0) */}
@@ -276,14 +265,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
               transition={{ duration: 0.2 }}
               className="space-y-3 "
             >
-              <div className="text-center mb-3">
-                <h2 className="text-[13px] font-semibold text-slate-900">
-                  How will you use EcoLoop?
-                </h2>
-                <p className="text-[13px] text-slate-500 mt-0.5">
-                  Select your primary account profile. Both can buy & sell freely.
-                </p>
-              </div>
+             
 
               <div className="grid grid-cols-1 gap-2.5" id="account-type-cards">
                 {/* Individual Card */}
@@ -316,8 +298,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
                       )}
                     </div>
                     <p className="text-[13px] text-slate-600 mt-1 leading-relaxed">
-                      Buy, sell and give products a second life. Perfect for personal sustainable commerce and C2C circular exchange.
-                    </p>
+                    Identify, check safety, and sell your household waste.                    </p>
                   </div>
                 </div>
 
@@ -351,8 +332,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
                       )}
                     </div>
                     <p className="text-[13px] text-slate-600 mt-1 leading-relaxed">
-                      Source, sell and manage materials and products. Ideal for manufacturers, recyclers, traders and enterprises.
-                    </p>
+                   Classify, and sell industrial materials at scale. </p>
                   </div>
                 </div>
               </div>
@@ -363,13 +343,13 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
                 </p>
               )}
 
-              <div className="pt-2">
+              <div className="pt-2 flex justify-center">
                 <button
                   type="button"
                   id="account-type-continue-btn"
                   onClick={handleNext}
                   disabled={!accountType}
-                  className="w-full py-2 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-[13px] font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="w-48 py-2 px-5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-[13px] font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   <span>Continue</span>
                   <ArrowRight className="w-4 h-4" />
@@ -464,11 +444,11 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
                 {errors.phone && <p className="text-[13px] text-rose-600 mt-1">{errors.phone}</p>}
               </div>
 
-              <div className="flex gap-3 pt-3">
+              <div className="flex justify-center gap-3 pt-4">
                 <button
                   type="button"
                   onClick={handleBack}
-                  className="py-1.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-semibold text-[13px] hover:bg-slate-50 transition-colors flex items-center gap-1.5 cursor-pointer"
+                  className="w-32 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>
@@ -477,7 +457,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
                   type="button"
                   id="ind-step1-next"
                   onClick={handleNext}
-                  className="flex-1 py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[13px] rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-44 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>Next</span>
                   <ArrowRight className="w-4 h-4" />
@@ -580,11 +560,11 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-3">
+              <div className="flex justify-center gap-3 pt-4">
                 <button
                   type="button"
                   onClick={handleBack}
-                  className="py-1.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-semibold text-[13px] hover:bg-slate-50 transition-colors flex items-center gap-1.5 cursor-pointer"
+                  className="w-32 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>
@@ -593,7 +573,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
                   type="button"
                   id="ind-step2-next"
                   onClick={handleNext}
-                  className="flex-1 py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[13px] rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-44 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>Next</span>
                   <ArrowRight className="w-4 h-4" />
@@ -674,12 +654,12 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
                 {errors.agreedPrivacy && <p className="text-[13px] text-rose-600 pl-6">{errors.agreedPrivacy}</p>}
               </div>
 
-              <div className="flex gap-3 pt-3">
+              <div className="flex justify-center gap-3 pt-4">
                 <button
                   type="button"
                   onClick={handleBack}
                   disabled={loading}
-                  className="py-1.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-semibold text-[13px] hover:bg-slate-50 transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  className="w-32 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>
@@ -689,12 +669,12 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
                   id="ind-create-account-btn"
                   onClick={handleSubmit}
                   disabled={loading}
-                  className="flex-1 py-2 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-[13px] rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+                  className="w-48 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-sm rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
                 >
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Creating Account...</span>
+                      <span>Creating...</span>
                     </>
                   ) : (
                     <>
@@ -793,11 +773,11 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
                 {errors.phone && <p className="text-[13px] text-rose-600 mt-1">{errors.phone}</p>}
               </div>
 
-              <div className="flex gap-3 pt-3">
+              <div className="flex justify-center gap-3 pt-4">
                 <button
                   type="button"
                   onClick={handleBack}
-                  className="py-1.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-semibold text-[13px] hover:bg-slate-50 transition-colors flex items-center gap-1.5 cursor-pointer"
+                  className="w-32 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>
@@ -806,7 +786,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
                   type="button"
                   id="biz-step1-next"
                   onClick={handleNext}
-                  className="flex-1 py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[13px] rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-44 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>Next</span>
                   <ArrowRight className="w-4 h-4" />
@@ -915,11 +895,11 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
                 {errors.businessCategory && <p className="text-[13px] text-rose-600 mt-1">{errors.businessCategory}</p>}
               </div>
 
-              <div className="flex gap-3 pt-3">
+              <div className="flex justify-center gap-3 pt-4">
                 <button
                   type="button"
                   onClick={handleBack}
-                  className="py-1.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-semibold text-[13px] hover:bg-slate-50 transition-colors flex items-center gap-1.5 cursor-pointer"
+                  className="w-32 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>
@@ -928,7 +908,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
                   type="button"
                   id="biz-step2-next"
                   onClick={handleNext}
-                  className="flex-1 py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[13px] rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-44 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>Next</span>
                   <ArrowRight className="w-4 h-4" />
@@ -1031,11 +1011,11 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-3">
+              <div className="flex justify-center gap-3 pt-4">
                 <button
                   type="button"
                   onClick={handleBack}
-                  className="py-1.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-semibold text-[13px] hover:bg-slate-50 transition-colors flex items-center gap-1.5 cursor-pointer"
+                  className="w-32 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>
@@ -1044,7 +1024,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
                   type="button"
                   id="biz-step3-next"
                   onClick={handleNext}
-                  className="flex-1 py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[13px] rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-44 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>Next</span>
                   <ArrowRight className="w-4 h-4" />
@@ -1127,12 +1107,12 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
                 {errors.agreedPrivacy && <p className="text-[13px] text-rose-600 pl-6">{errors.agreedPrivacy}</p>}
               </div>
 
-              <div className="flex gap-3 pt-3">
+              <div className="flex justify-center gap-3 pt-4">
                 <button
                   type="button"
                   onClick={handleBack}
                   disabled={loading}
-                  className="py-1.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-semibold text-[13px] hover:bg-slate-50 transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  className="w-32 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>
@@ -1142,17 +1122,17 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, onSuccessToa
                   id="biz-create-account-btn"
                   onClick={handleSubmit}
                   disabled={loading}
-                  className="flex-1 py-2 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-[13px] rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+                  className="w-56 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-sm rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
                 >
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Creating Business Account...</span>
+                      <span>Creating Business...</span>
                     </>
                   ) : (
                     <>
                       <Building2 className="w-4 h-4 text-emerald-200" />
-                      <span>Create Business Account</span>
+                      <span>Create Account</span>
                     </>
                   )}
                 </button>

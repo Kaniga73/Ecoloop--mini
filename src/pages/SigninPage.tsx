@@ -77,20 +77,20 @@ export const SigninPage: React.FC<SigninPageProps> = ({ onNavigate, onSuccessToa
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.25 }}
-      className="w-full max-w-[460px] mx-auto px-0 sm:px-2"
+      className="w-full max-w-[440px] mx-auto px-0 sm:px-2"
       id="login-page-container"
     >
-      <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-[0_4px_24px_-4px_rgba(15,23,42,0.06)] p-4 sm:p-5">
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-[0_4px_24px_-4px_rgba(15,23,42,0.06)] p-5 sm:p-6">
         {/* Header */}
-        <div className="text-center mb-3 sm:mb-7">
+        <div className="text-center mb-5">
           <div className="flex justify-center mb-3">
-            <EcoLoopLogo size="lg" />
+            <EcoLoopLogo size="md" />
           </div>
-          <h1 className="text-[13px] sm:text-[13px] font-bold text-slate-900 tracking-normal font-sans tracking-normal">
+          <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight font-sans">
             Welcome back
           </h1>
-          <p className="text-[13px] sm:text-[13px] text-slate-500 mt-1 sm:mt-1.5 leading-relaxed">
-            Sign in to your unified circular-economy account to buy, sell, and trade.
+          <p className="text-[13px] text-slate-500 mt-1">
+            Sign in to access your EcoLoop account
           </p>
         </div>
 
@@ -99,7 +99,7 @@ export const SigninPage: React.FC<SigninPageProps> = ({ onNavigate, onSuccessToa
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            className="mb-3 p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-rose-800 text-[13px] sm:text-[13px]"
+            className="mb-3.5 p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-rose-800 text-[13px]"
             role="alert"
             id="login-error-banner"
           >
@@ -115,7 +115,7 @@ export const SigninPage: React.FC<SigninPageProps> = ({ onNavigate, onSuccessToa
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            className="mb-3 p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5 text-amber-800 text-[13px] sm:text-[13px]"
+            className="mb-3.5 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5 text-amber-800 text-[13px]"
             role="alert"
             id="login-network-banner"
           >
@@ -132,7 +132,7 @@ export const SigninPage: React.FC<SigninPageProps> = ({ onNavigate, onSuccessToa
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="mb-3 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2.5 text-emerald-800 text-[13px] font-medium"
+            className="mb-3.5 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2.5 text-emerald-800 text-[13px] font-medium"
             id="login-success-banner"
           >
             <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
@@ -141,12 +141,12 @@ export const SigninPage: React.FC<SigninPageProps> = ({ onNavigate, onSuccessToa
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-3 " noValidate id="login-form">
+        <form onSubmit={handleSubmit} className="space-y-3.5" noValidate id="login-form">
           {/* Email field */}
           <div>
             <label
               htmlFor="login-email"
-              className="block text-[13px] font-semibold uppercase tracking-wider text-slate-700 mb-1.5"
+              className="block text-[12px] font-semibold uppercase tracking-wider text-slate-700 mb-1.5"
             >
               Email Address
             </label>
@@ -168,7 +168,7 @@ export const SigninPage: React.FC<SigninPageProps> = ({ onNavigate, onSuccessToa
                   }
                 }}
                 placeholder="you@example.com"
-                className={`w-full pl-10 pr-4 py-1.5 bg-slate-50/50 hover:bg-slate-50 focus:bg-white text-slate-900 text-[13px] rounded-xl border transition-all duration-200 outline-none ${
+                className={`w-full pl-10 pr-4 py-2 bg-slate-50/50 hover:bg-slate-50 focus:bg-white text-slate-900 text-[13px] rounded-xl border transition-all duration-200 outline-none ${
                   validationErrors.email
                     ? 'border-rose-400 focus:border-rose-500 focus:ring-3 focus:ring-rose-500/10'
                     : 'border-slate-200 focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/10'
@@ -176,40 +176,42 @@ export const SigninPage: React.FC<SigninPageProps> = ({ onNavigate, onSuccessToa
               />
             </div>
             {validationErrors.email && (
-              <p className="text-[13px] text-rose-600 mt-1 font-medium" id="email-validation-error">
+              <p className="text-[12px] text-rose-600 mt-1 font-medium" id="email-validation-error">
                 {validationErrors.email}
               </p>
             )}
           </div>
 
           {/* Submit Button */}
-          <button
-            type="submit"
-            id="login-submit-button"
-            disabled={loading || success}
-            className="w-full mt-2 py-2 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-[13px] font-semibold rounded-xl shadow-sm hover:shadow transition-all duration-150 flex items-center justify-center gap-2 focus:outline-none focus:ring-3 focus:ring-emerald-600/30 disabled:opacity-70 disabled:cursor-not-allowed group cursor-pointer"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin text-white" />
-                <span>Signing in...</span>
-              </>
-            ) : success ? (
-              <>
-                <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-                <span>Redirecting...</span>
-              </>
-            ) : (
-              <>
-                <span>Sign in to EcoLoop</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-              </>
-            )}
-          </button>
+          <div className="flex justify-center pt-1.5">
+            <button
+              type="submit"
+              id="login-submit-button"
+              disabled={loading || success}
+              className="w-48 py-2 px-5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-[13px] font-semibold rounded-xl shadow-sm hover:shadow transition-all duration-150 flex items-center justify-center gap-2 focus:outline-none focus:ring-3 focus:ring-emerald-600/30 disabled:opacity-70 disabled:cursor-not-allowed group cursor-pointer"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Signing in...</span>
+                </>
+              ) : success ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                  <span>Redirecting...</span>
+                </>
+              ) : (
+                <>
+                  <span>Sign in</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </>
+              )}
+            </button>
+          </div>
         </form>
 
         {/* Bottom Switch */}
-        <div className="mt-6 pt-5 border-t border-slate-100 text-center">
+        <div className="mt-5 pt-4 border-t border-slate-100 text-center">
           <p className="text-[13px] text-slate-600">
             Don't have an account?{' '}
             <button
