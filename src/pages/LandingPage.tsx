@@ -34,10 +34,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>("All Categories");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [locationQuery, setLocationQuery] = useState<string>("");
-  const [maxPrice, setMaxPrice] = useState<number>(1000000);
+  const [minPrice, setMinPrice] = useState<string>("");
+  const [maxPrice, setMaxPrice] = useState<string>("");
+  const [minQuantity, setMinQuantity] = useState<string>("");
+  const [maxQuantity, setMaxQuantity] = useState<string>("");
   const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc" | "quantity">("newest");
   const [selectedListing, setSelectedListing] = useState<WasteListing | null>(null);
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [favorites, setFavorites] = useState<Set<string>>(
+    new Set(["listing-aluminum-coimbatore-20", "listing-pet-tiruppur-15"])
+  );
   const [currentUserIndex, setCurrentUserIndex] = useState<number>(0);
 
   // List Waste Modal state
@@ -95,7 +100,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     setSelectedCategory("All Categories");
     setSearchQuery("");
     setLocationQuery("");
-    setMaxPrice(1000000);
+    setMinPrice("");
+    setMaxPrice("");
+    setMinQuantity("");
+    setMaxQuantity("");
     setSortBy("newest");
   };
 
@@ -165,10 +173,29 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       quantity,
       unit: listing.unit,
       amount: quantity * pricePerUnit,
+      unitPrice: pricePerUnit,
       currency: listing.currency || "₹",
       status: "Pending",
       orderedDate: new Date().toISOString().split("T")[0],
       image: listing.images[0],
+      seller: {
+        id: listing.seller.id,
+        name: listing.seller.name,
+        company: listing.seller.company,
+        email: listing.seller.contactEmail || `${listing.seller.name.toLowerCase().replace(/\s+/g, ".")}@example.com`,
+        phone: listing.seller.contactPhone || "+91 98401 00000",
+        location: listing.seller.location || `${listing.location.city}, ${listing.location.stateOrCountry}`,
+        avatar: listing.seller.avatar,
+      },
+      buyer: {
+        id: activeUser.id,
+        name: activeUser.name,
+        company: activeUser.company,
+        email: activeUser.email,
+        phone: (activeUser as any).phone || "+91 98401 23456",
+        location: activeUser.location,
+        avatar: activeUser.avatar,
+      },
     };
     setPurchases((prev) => [newPurchase, ...prev]);
   };
@@ -204,8 +231,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       );
     }
 
-    if (maxPrice < 1000000) {
-      result = result.filter((item) => item.pricePerUnit <= maxPrice);
+    if (minPrice.trim() !== "" && !isNaN(Number(minPrice))) {
+      result = result.filter((item) => item.pricePerUnit >= Number(minPrice));
+    }
+
+    if (maxPrice.trim() !== "" && !isNaN(Number(maxPrice))) {
+      result = result.filter((item) => item.pricePerUnit <= Number(maxPrice));
+    }
+
+    if (minQuantity.trim() !== "" && !isNaN(Number(minQuantity))) {
+      result = result.filter((item) => item.totalQuantity >= Number(minQuantity));
+    }
+
+    if (maxQuantity.trim() !== "" && !isNaN(Number(maxQuantity))) {
+      result = result.filter((item) => item.totalQuantity <= Number(maxQuantity));
     }
 
     if (sortBy === "price-asc") {
@@ -217,7 +256,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     }
 
     return result;
-  }, [allListings, selectedCategory, searchQuery, locationQuery, maxPrice, sortBy]);
+  }, [allListings, selectedCategory, searchQuery, locationQuery, minPrice, maxPrice, minQuantity, maxQuantity, sortBy]);
 
   // If a listing is selected, render ListingDetailPage
   if (selectedListing) {
@@ -285,6 +324,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             purchases={purchases}
             onDeleteListing={handleDeleteListing}
             onEditListing={handleEditListing}
+            favorites={favorites}
+            onToggleFavorite={(id) => handleToggleFavorite(id)}
+            onOpenMakeOffer={handleOpenMakeOffer}
+            onExploreMarketplace={() => setActiveTab("marketplace")}
           />
         ) : (
           /* Marketplace View */
@@ -295,8 +338,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               onSelectCategory={setSelectedCategory}
               locationQuery={locationQuery}
               onLocationChange={setLocationQuery}
+              minPrice={minPrice}
+              onMinPriceChange={setMinPrice}
               maxPrice={maxPrice}
               onMaxPriceChange={setMaxPrice}
+              minQuantity={minQuantity}
+              onMinQuantityChange={setMinQuantity}
+              maxQuantity={maxQuantity}
+              onMaxQuantityChange={setMaxQuantity}
               onResetFilters={handleResetFilters}
             />
 

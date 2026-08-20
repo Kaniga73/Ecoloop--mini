@@ -68,17 +68,6 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 Dashboard
               </button>
-              <button
-                id="nav-tab-messages"
-                onClick={() => setActiveTab("messages")}
-                className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activeTab === "messages"
-                    ? "text-emerald-700 bg-emerald-50 font-semibold"
-                    : "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
-                }`}
-              >
-                Messages
-              </button>
             </nav>
           </div>
 

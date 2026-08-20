@@ -125,6 +125,16 @@ export interface WasteListingLocation {
   };
 }
 
+export interface PartyDetails {
+  id?: string;
+  name: string;
+  company: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  avatar?: string;
+}
+
 export interface WasteSellerInfo {
   id: string;
   name: string;
@@ -150,6 +160,7 @@ export interface WasteListing {
   isPriceNegotiable: boolean;
   description: string;
   seller: WasteSellerInfo;
+  buyer?: PartyDetails;
   listedDate: string;
   viewCount: number;
   status: 'available' | 'reserved' | 'sold';

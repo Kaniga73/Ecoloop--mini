@@ -6,8 +6,14 @@ interface SidebarFilterProps {
   onSelectCategory: (cat: string) => void;
   locationQuery: string;
   onLocationChange: (loc: string) => void;
-  maxPrice: number;
-  onMaxPriceChange: (val: number) => void;
+  minPrice: string;
+  onMinPriceChange: (val: string) => void;
+  maxPrice: string;
+  onMaxPriceChange: (val: string) => void;
+  minQuantity: string;
+  onMinQuantityChange: (val: string) => void;
+  maxQuantity: string;
+  onMaxQuantityChange: (val: string) => void;
   onResetFilters: () => void;
 }
 
@@ -30,8 +36,14 @@ export const SidebarFilter: React.FC<SidebarFilterProps> = ({
   onSelectCategory,
   locationQuery,
   onLocationChange,
+  minPrice,
+  onMinPriceChange,
   maxPrice,
   onMaxPriceChange,
+  minQuantity,
+  onMinQuantityChange,
+  maxQuantity,
+  onMaxQuantityChange,
   onResetFilters,
 }) => {
   return (
@@ -45,7 +57,7 @@ export const SidebarFilter: React.FC<SidebarFilterProps> = ({
         <button
           id="reset-filter-btn"
           onClick={onResetFilters}
-          className="text-xs text-neutral-400 hover:text-emerald-700 font-medium flex items-center gap-1 transition-colors"
+          className="text-xs text-neutral-400 hover:text-emerald-700 font-medium flex items-center gap-1 transition-colors cursor-pointer"
           title="Reset all filters"
         >
           <RotateCcw className="w-3 h-3" />
@@ -73,7 +85,7 @@ export const SidebarFilter: React.FC<SidebarFilterProps> = ({
                   type="checkbox"
                   checked={isSelected}
                   onChange={() => onSelectCategory(cat.id)}
-                  className="w-3.5 h-3.5 rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500 transition-colors"
+                  className="w-3.5 h-3.5 rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500 transition-colors cursor-pointer"
                 />
                 <span className="flex-1 truncate">{cat.label}</span>
               </label>
@@ -106,7 +118,7 @@ export const SidebarFilter: React.FC<SidebarFilterProps> = ({
               key={city}
               id={`filter-city-chip-${city.toLowerCase()}`}
               onClick={() => onLocationChange(locationQuery.toLowerCase() === city.toLowerCase() ? "" : city)}
-              className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors ${
+              className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
                 locationQuery.toLowerCase() === city.toLowerCase()
                   ? "bg-emerald-700 text-white font-semibold"
                   : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
@@ -118,28 +130,79 @@ export const SidebarFilter: React.FC<SidebarFilterProps> = ({
         </div>
       </div>
 
-      {/* Maximum Price Filter in INR (₹) */}
+      {/* Price Range Filter (₹) */}
       <div className="pt-2 border-t border-neutral-100">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-bold text-neutral-700">Max Price (₹)</span>
-          <span className="text-xs font-bold text-emerald-800">
-            {maxPrice >= 1000000 ? "All Prices" : `₹${maxPrice.toLocaleString("en-IN")}`}
-          </span>
+        <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2.5 flex items-center justify-between">
+          <span>Price Range (₹)</span>
+          <span className="text-[10px] text-neutral-400 font-normal lowercase">per unit</span>
+        </h4>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label htmlFor="sidebar-min-price-input" className="block text-[11px] font-medium text-neutral-600 mb-1">
+              From (₹)
+            </label>
+            <input
+              id="sidebar-min-price-input"
+              type="number"
+              min="0"
+              value={minPrice}
+              onChange={(e) => onMinPriceChange(e.target.value)}
+              placeholder="Min"
+              className="w-full px-2.5 py-1.5 text-xs bg-neutral-50 border border-neutral-200 rounded-xl text-neutral-800 placeholder-neutral-400 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+            />
+          </div>
+          <div>
+            <label htmlFor="sidebar-max-price-input" className="block text-[11px] font-medium text-neutral-600 mb-1">
+              To (₹)
+            </label>
+            <input
+              id="sidebar-max-price-input"
+              type="number"
+              min="0"
+              value={maxPrice}
+              onChange={(e) => onMaxPriceChange(e.target.value)}
+              placeholder="Max"
+              className="w-full px-2.5 py-1.5 text-xs bg-neutral-50 border border-neutral-200 rounded-xl text-neutral-800 placeholder-neutral-400 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+            />
+          </div>
         </div>
-        <input
-          id="sidebar-max-price-range"
-          type="range"
-          min="5000"
-          max="1000000"
-          step="5000"
-          value={maxPrice}
-          onChange={(e) => onMaxPriceChange(Number(e.target.value))}
-          className="w-full accent-emerald-600 cursor-pointer"
-        />
-        <div className="flex justify-between text-[10px] text-neutral-400 mt-1 font-mono">
-          <span>₹5k</span>
-          <span>₹5,00,000</span>
-          <span>₹10,00,000+</span>
+      </div>
+
+      {/* Quantity Range Filter */}
+      <div className="pt-2 border-t border-neutral-100">
+        <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2.5 flex items-center justify-between">
+          <span>Quantity Range</span>
+          <span className="text-[10px] text-neutral-400 font-normal lowercase">total units</span>
+        </h4>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label htmlFor="sidebar-min-quantity-input" className="block text-[11px] font-medium text-neutral-600 mb-1">
+              From
+            </label>
+            <input
+              id="sidebar-min-quantity-input"
+              type="number"
+              min="0"
+              value={minQuantity}
+              onChange={(e) => onMinQuantityChange(e.target.value)}
+              placeholder="Min"
+              className="w-full px-2.5 py-1.5 text-xs bg-neutral-50 border border-neutral-200 rounded-xl text-neutral-800 placeholder-neutral-400 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+            />
+          </div>
+          <div>
+            <label htmlFor="sidebar-max-quantity-input" className="block text-[11px] font-medium text-neutral-600 mb-1">
+              To
+            </label>
+            <input
+              id="sidebar-max-quantity-input"
+              type="number"
+              min="0"
+              value={maxQuantity}
+              onChange={(e) => onMaxQuantityChange(e.target.value)}
+              placeholder="Max"
+              className="w-full px-2.5 py-1.5 text-xs bg-neutral-50 border border-neutral-200 rounded-xl text-neutral-800 placeholder-neutral-400 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none transition-all"
+            />
+          </div>
         </div>
       </div>
     </aside>

@@ -12,6 +12,10 @@ interface DashboardPageProps {
   purchases?: PurchaseRecord[];
   onDeleteListing?: (listing: WasteListing) => void;
   onEditListing?: (listing: WasteListing) => void;
+  favorites?: Set<string>;
+  onToggleFavorite?: (id: string) => void;
+  onOpenMakeOffer?: (listing: WasteListing) => void;
+  onExploreMarketplace?: () => void;
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = (props) => {
