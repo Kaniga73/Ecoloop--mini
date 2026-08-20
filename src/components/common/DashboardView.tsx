@@ -301,13 +301,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm border-collapse">
             <thead className="text-neutral-500 text-xs font-semibold bg-neutral-50/60">
               <tr>
-                <th className="px-5 py-3">Product</th>
-                <th className="px-5 py-3">Category</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3 text-right">Actions</th>
+                <th className="px-5 py-3 align-middle w-5/12">Product</th>
+                <th className="px-5 py-3 align-middle w-2/12">Category</th>
+                <th className="px-5 py-3 align-middle w-2/12">Status</th>
+                <th className="px-5 py-3 align-middle w-3/12 text-left">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
@@ -320,18 +320,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               ) : (
                 myListings.map((l) => (
                   <tr key={l.id} className="hover:bg-neutral-50/70 transition-colors">
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3 align-middle">
                       <div className="flex items-center gap-3">
                         <img
                           src={l.images[0]}
                           alt={l.title}
                           className="w-9 h-9 rounded-lg object-cover border border-neutral-200 shrink-0"
                         />
-                        <span className="font-semibold text-neutral-900 truncate max-w-[180px]">{l.title}</span>
+                        <span className="font-semibold text-neutral-900 truncate max-w-[220px]">{l.title}</span>
                       </div>
                     </td>
-                    <td className="px-5 py-3 text-neutral-600">{l.category}</td>
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3 text-neutral-600 align-middle">{l.category}</td>
+                    <td className="px-5 py-3 align-middle">
                       <span
                         className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
                           statusPillClasses[l.status] || "bg-neutral-100 text-neutral-600 border-neutral-200"
@@ -340,8 +340,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         {statusLabel(l.status)}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="px-5 py-3 align-middle">
+                      <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleViewListingDetails(l)}
                           className="px-2.5 py-1.5 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-700 hover:border-emerald-500 hover:text-emerald-700 hover:bg-emerald-50/50 transition-all flex items-center gap-1.5 cursor-pointer"
@@ -383,13 +383,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm border-collapse">
             <thead className="text-neutral-500 text-xs font-semibold bg-neutral-50/60">
               <tr>
-                <th className="px-5 py-3">Product</th>
-                <th className="px-5 py-3">Category</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3 text-right">Actions</th>
+                <th className="px-5 py-3 align-middle w-5/12">Product</th>
+                <th className="px-5 py-3 align-middle w-2/12">Category</th>
+                <th className="px-5 py-3 align-middle w-2/12">Status</th>
+                <th className="px-5 py-3 align-middle w-3/12 text-left">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
@@ -402,7 +402,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               ) : (
                 purchases.map((p) => (
                   <tr key={p.id} className="hover:bg-neutral-50/70 transition-colors">
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3 align-middle">
                       <div className="flex items-center gap-3">
                         {p.image && (
                           <img
@@ -411,11 +411,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             className="w-9 h-9 rounded-lg object-cover border border-neutral-200 shrink-0"
                           />
                         )}
-                        <span className="font-semibold text-neutral-900 truncate max-w-[180px]">{p.productTitle}</span>
+                        <span className="font-semibold text-neutral-900 truncate max-w-[220px]">{p.productTitle}</span>
                       </div>
                     </td>
-                    <td className="px-5 py-3 text-neutral-600">{p.category}</td>
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3 text-neutral-600 align-middle">{p.category}</td>
+                    <td className="px-5 py-3 align-middle">
                       <span
                         className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
                           statusPillClasses[p.status] || "bg-neutral-100 text-neutral-600 border-neutral-200"
@@ -424,15 +424,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         {p.status}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-right">
-                      <button
-                        onClick={() => handleViewPurchaseDetails(p)}
-                        className="px-2.5 py-1.5 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-700 hover:border-emerald-500 hover:text-emerald-700 hover:bg-emerald-50/50 transition-all flex items-center gap-1.5 ml-auto cursor-pointer"
-                        title="View complete transaction details"
-                      >
-                        <Eye className="w-3.5 h-3.5 text-emerald-600" />
-                        View Details
-                      </button>
+                    <td className="px-5 py-3 align-middle">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleViewPurchaseDetails(p)}
+                          className="px-2.5 py-1.5 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-700 hover:border-emerald-500 hover:text-emerald-700 hover:bg-emerald-50/50 transition-all flex items-center gap-1.5 cursor-pointer"
+                          title="View complete transaction details"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                          View Details
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -451,7 +453,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-neutral-900 flex items-center gap-2">
-                Wishlist <span className="text-neutral-400 font-semibold">(Saved Products)</span>
+                Wishlist 
               </h3>
             </div>
           </div>
@@ -461,22 +463,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm border-collapse">
             <thead className="text-neutral-500 text-xs font-semibold bg-neutral-50/60">
               <tr>
-                <th className="px-5 py-3">Product</th>
-                <th className="px-5 py-3">Category</th>
-                <th className="px-5 py-3">Available Quantity</th>
-                <th className="px-5 py-3">Price</th>
-                <th className="px-5 py-3">Seller</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3 text-right">Actions</th>
+                <th className="px-5 py-3 align-middle w-5/12">Product</th>
+                <th className="px-5 py-3 align-middle w-2/12">Category</th>
+                <th className="px-5 py-3 align-middle w-2/12">Status</th>
+                <th className="px-5 py-3 align-middle w-3/12 text-left">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
               {wishlistListings.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-neutral-400 text-sm">
+                  <td colSpan={4} className="px-5 py-12 text-center text-neutral-400 text-sm">
                     <div className="max-w-xs mx-auto space-y-2">
                       <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-400 flex items-center justify-center mx-auto">
                         <Heart className="w-6 h-6" />
@@ -499,30 +498,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               ) : (
                 wishlistListings.map((l) => (
                   <tr key={l.id} className="hover:bg-neutral-50/70 transition-colors">
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3 align-middle">
                       <div className="flex items-center gap-3">
                         <img
                           src={l.images[0]}
                           alt={l.title}
                           className="w-9 h-9 rounded-lg object-cover border border-neutral-200 shrink-0"
                         />
-                        <span className="font-semibold text-neutral-900 truncate max-w-[180px]">{l.title}</span>
+                        <span className="font-semibold text-neutral-900 truncate max-w-[220px]">{l.title}</span>
                       </div>
                     </td>
-                    <td className="px-5 py-3 text-neutral-600">{l.category}</td>
-                    <td className="px-5 py-3 text-neutral-600">
-                      {l.totalQuantity} {l.unit}
-                    </td>
-                    <td className="px-5 py-3 text-neutral-600 font-medium">
-                      {l.currency}{l.pricePerUnit.toLocaleString("en-IN")} / {l.unit}
-                    </td>
-                    <td className="px-5 py-3">
-                      <div className="text-xs">
-                        <span className="font-semibold text-neutral-900 block">{l.seller.company}</span>
-                        <span className="text-neutral-500">{l.seller.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3 text-neutral-600 align-middle">{l.category}</td>
+                    <td className="px-5 py-3 align-middle">
                       <span
                         className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
                           statusPillClasses[l.status] || "bg-neutral-100 text-neutral-600 border-neutral-200"
@@ -531,25 +518,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         {statusLabel(l.status)}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {onOpenMakeOffer && (
-                          <button
-                            onClick={() => onOpenMakeOffer(l)}
-                            className="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-medium transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
-                            title="Make offer / Buy"
-                          >
-                            <ShoppingCart className="w-3.5 h-3.5" />
-                            Make Offer
-                          </button>
-                        )}
+                    <td className="px-5 py-3 align-middle">
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => handleViewListingDetails(l)}
-                          className="px-2.5 py-1.5 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-700 hover:border-emerald-500 hover:text-emerald-700 hover:bg-emerald-50/50 transition-all flex items-center gap-1.5 cursor-pointer"
-                          title="View product details"
+                          onClick={() => onOpenListing(l)}
+                          className="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
+                          title="View product post"
                         >
-                          <Eye className="w-3.5 h-3.5 text-emerald-600" />
-                          View
+                          <Eye className="w-3.5 h-3.5 text-white" />
+                          View Product
                         </button>
                         {onToggleFavorite && (
                           <button

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, DollarSign, Package } from "lucide-react";
+import { X, Send, Package } from "lucide-react";
 import { WasteListing, UserProfile } from "../../types";
 
 interface MakeOfferModalProps {
@@ -139,8 +139,8 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({
               type="submit"
               className="px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
             >
-              <DollarSign className="w-4 h-4" />
-              Confirm Offer & Purchase
+              <Send className="w-4 h-4" />
+              Transmit Offer to Seller
             </button>
           </div>
         </form>
