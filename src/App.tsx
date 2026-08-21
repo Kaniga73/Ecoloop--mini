@@ -8,6 +8,7 @@ import { EmailVerificationPage } from './pages/EmailVerificationPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { LandingPage } from './pages/LandingPage';
+import { SellPage } from './pages/SellPage.tsx';
 import { ToastContainer, ToastMessage } from './components/common/Toast';
 import { AnimatePresence } from 'motion/react';
 
@@ -15,6 +16,7 @@ function getInitialView(): AuthView {
   const path = window.location.pathname.replace(/^\/+/, '');
   if (path === 'signup') return 'signup';
   if (path === 'verify-email') return 'verify-email';
+  if (path === 'sell') return 'sell';
   return 'login';
 }
 
@@ -56,7 +58,7 @@ function MainAuthApp() {
   // Strict Routing Enforcer
   useEffect(() => {
     if (isAuthenticated) {
-      if (currentView !== 'home') {
+      if (currentView !== 'home' && currentView !== 'sell') {
         handleNavigate('home');
       }
     } else {
@@ -82,14 +84,23 @@ function MainAuthApp() {
   // Authenticated app shell — rendered full-bleed, NOT wrapped in AuthLayout
   // (AuthLayout centers/caps its children for login-style cards, which
   // would otherwise box in the full marketplace page)
-  if (isAuthenticated && currentView === 'home') {
+  if (isAuthenticated && (currentView === 'home' || currentView === 'sell')) {
     return (
       <>
-        <LandingPage
-          key="home-view"
-          onLogoutToast={(msg) => addToast(msg, 'info')}
-          onNavigateToAuth={(v) => handleNavigate(v)}
-        />
+        {currentView === 'home' && (
+          <LandingPage
+            key="home-view"
+            onLogoutToast={(msg) => addToast(msg, 'info')}
+            onNavigateToAuth={(v) => handleNavigate(v)}
+          />
+        )}
+        {currentView === 'sell' && (
+          <SellPage
+            key="sell-view"
+            onNavigate={(v) => handleNavigate(v)}
+            onSuccessToast={(msg) => addToast(msg, 'success')}
+          />
+        )}
         <ToastContainer toasts={toasts} onDismiss={removeToast} />
       </>
     );

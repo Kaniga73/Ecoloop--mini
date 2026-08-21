@@ -7,7 +7,7 @@ interface HeaderProps {
   setActiveTab: (tab: "marketplace" | "dashboard" | "messages" | "list-waste") => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  onOpenListWaste?: () => void;
+  onNavigateToSell?: () => void;
   currentUser: UserProfile;
   onSwitchUser: () => void;
   unreadCount: number;
@@ -19,7 +19,7 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   searchQuery,
   setSearchQuery,
-  onOpenListWaste,
+  onNavigateToSell,
   currentUser,
   onSwitchUser,
   unreadCount,
@@ -99,7 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* List Waste Button */}
             <button
               id="top-list-waste-btn"
-              onClick={onOpenListWaste}
+              onClick={onNavigateToSell}
               className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-sm font-semibold shadow-sm transition-all hover:shadow focus:outline-none cursor-pointer"
             >
               <Plus className="w-4 h-4" />

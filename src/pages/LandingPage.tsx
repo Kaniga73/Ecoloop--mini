@@ -6,11 +6,13 @@ import { ListingDetailPage } from "./ListingDetailPage";
 import { DashboardPage } from "./DashboardPage";
 import { ListWasteModal } from "../components/common/ListWasteModal";
 import { MakeOfferModal } from "../components/common/MakeOfferModal";
+import { SellPage } from "./SellPage";
 import { PurchaseRecord } from "../components/common/DashboardView";
 import { initialListings, currentUserProfiles } from "../data/mockListings";
 import { WasteListing, UserProfile, AuthView } from "../types";
 import { useAuth } from "../hooks/useAuth";
 import { Search } from "lucide-react";
+import { fetchActiveListings, deleteWasteListing, updateWasteListing } from "../lib/listingsService";
 
 interface LandingPageProps {
   onLogoutToast?: (msg: string) => void;
@@ -30,6 +32,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   // State management — purchases start empty [] by default until buyer purchases real items
   const [allListings, setAllListings] = useState<WasteListing[]>(propListings || initialListings);
   const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(isLoadingListings);
+
+  const fetchAndSetListings = () => {
+    setIsLoading(true);
+    fetchActiveListings().then(fetchedListings => {
+      if (fetchedListings.length > 0) {
+        setAllListings([...fetchedListings, ...initialListings]);
+      } else {
+        setAllListings([...initialListings]);
+      }
+    }).finally(() => {
+      setIsLoading(false);
+    });
+  };
+
+  React.useEffect(() => {
+    if (!propListings) {
+      fetchAndSetListings();
+    }
+  }, [propListings]);
   const [activeTab, setActiveTab] = useState<"marketplace" | "dashboard" | "messages" | "list-waste">("marketplace");
   const [selectedCategory, setSelectedCategory] = useState<string>("All Categories");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -115,20 +137,50 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
   const handleEditListing = (listing: WasteListing) => {
     setEditingListing(listing);
-    setIsListWasteModalOpen(true);
+    // Don't open the modal, we'll render SellPage instead
   };
 
-  const handleDeleteListing = (listing: WasteListing) => {
+  const handleDeleteListing = async (listing: WasteListing) => {
     if (window.confirm(`Are you sure you want to delete "${listing.title}"?`)) {
+      // Optimistically remove from UI
       setAllListings((prev) => prev.filter((item) => item.id !== listing.id));
+      
+      // Remove from backend if it's a real listing
+      if (!listing.id.startsWith("listing-")) {
+        const result = await deleteWasteListing(listing.id);
+        if (result.error) {
+          alert(`Failed to delete from database: ${result.error}`);
+          // Rollback could be implemented here
+        }
+      }
     }
   };
 
-  const handleSubmitListing = (listingData: Partial<WasteListing>) => {
+  const handleSubmitListing = async (listingData: Partial<WasteListing>) => {
     if (listingData.id) {
+      // Update in local state
       setAllListings((prev) =>
         prev.map((item) => (item.id === listingData.id ? ({ ...item, ...listingData } as WasteListing) : item))
       );
+      
+      // Update in backend if it's a real listing
+      if (!listingData.id.startsWith("listing-")) {
+        const updateData = {
+          title: listingData.title,
+          category: listingData.category,
+          description: listingData.description,
+          quantity: listingData.totalQuantity,
+          unit: listingData.unit,
+          price: listingData.pricePerUnit,
+          currency: listingData.currency,
+          condition: listingData.condition,
+          location_city: listingData.location?.city,
+        };
+        const result = await updateWasteListing(listingData.id, updateData);
+        if (result.error) {
+          alert(`Failed to update database: ${result.error}`);
+        }
+      }
     } else {
       const newListing: WasteListing = {
         id: `listing-${Date.now()}`,
@@ -270,7 +322,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           }}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
-          onOpenListWaste={handleOpenListWaste}
+          onNavigateToSell={() => onNavigateToAuth?.('sell')}
           currentUser={activeUser}
           onSwitchUser={handleSwitchUser}
           unreadCount={1}
@@ -297,6 +349,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     );
   }
 
+  // If editing a listing, render the SellPage in edit mode
+  if (editingListing) {
+    return (
+      <SellPage 
+        initialListing={editingListing} 
+        onNavigate={() => {
+          setEditingListing(null);
+          if (!propListings) {
+            fetchAndSetListings();
+          }
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#FBFBFA] w-full flex flex-col">
       {/* Sticky Header */}
@@ -305,7 +372,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         setActiveTab={setActiveTab}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
-        onOpenListWaste={handleOpenListWaste}
+        onNavigateToSell={() => onNavigateToAuth?.('sell')}
         currentUser={activeUser}
         onSwitchUser={handleSwitchUser}
         unreadCount={1}
@@ -385,7 +452,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </div>
 
               {/* Listings Cards Grid */}
-              {isLoadingListings ? (
+              {isLoading ? (
                 <div className="p-16 text-center text-neutral-400">
                   <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
                   <p className="text-sm font-medium">Loading marketplace listings...</p>
@@ -427,13 +494,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </main>
 
       {/* Modals */}
-      <ListWasteModal
-        isOpen={isListWasteModalOpen}
-        onClose={() => setIsListWasteModalOpen(false)}
-        onSubmit={handleSubmitListing}
-        currentUser={activeUser}
-        initialListing={editingListing}
-      />
       <MakeOfferModal
         isOpen={isMakeOfferModalOpen}
         onClose={() => setIsMakeOfferModalOpen(false)}

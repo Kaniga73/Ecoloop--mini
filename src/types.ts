@@ -113,7 +113,8 @@ export type AuthView =
   | 'verify-email'
   | 'forgot-password'
   | 'reset-password'
-  | 'home';
+  | 'home'
+  | 'sell';
 
 export interface WasteListingLocation {
   city: string;
@@ -149,6 +150,8 @@ export interface WasteListing {
   id: string;
   title: string;
   category: string;
+  subcategory?: string;
+  description: string;
   location: WasteListingLocation;
   images: string[];
   pricePerUnit: number;
@@ -158,12 +161,36 @@ export interface WasteListing {
   totalEstimatedValue: number;
   minPurchaseQuantity: number;
   isPriceNegotiable: boolean;
-  description: string;
+  priceType?: string;
+  brand?: string;
+  modelCode?: string;
+  manufacturingYear?: string;
+  condition?: string;
+  aiSuggestions?: {
+    material?: string;
+    recyclable?: string;
+    reusable?: string;
+    suggestedPriceRange?: string;
+    tags?: string[];
+    ecoClassification?: string;
+    whatCanIDoWithThis?: string;
+  };
+  materialType?: string;
+  recyclability?: string;
+  reusability?: string;
+  wasteCategory?: string;
+  hazardousMaterial?: boolean;
+  bulkPurchaseAllowed?: boolean;
+  bulkPrice?: number;
+  startDate?: string;
+  deadline?: string;
+  preferredBuyer?: string;
+  transactionType?: string;
   seller: WasteSellerInfo;
   buyer?: PartyDetails;
   listedDate: string;
   viewCount: number;
-  status: 'available' | 'reserved' | 'sold';
+  status: 'available' | 'reserved' | 'sold' | 'expired';
 }
 
 export interface Conversation {
