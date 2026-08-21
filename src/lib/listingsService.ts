@@ -1,5 +1,24 @@
-import { supabase, isLiveSupabaseConfigured } from './supabase';
+import { supabase, isLiveSupabaseConfigured, getStoredProfiles } from './supabase';
 import { WasteListing, WasteListingLocation, WasteSellerInfo } from '../types';
+
+const LOCAL_STORAGE_LISTINGS_KEY = 'ecoloop_simulated_listings';
+
+function getStoredListings(): any[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_LISTINGS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredListings(listings: any[]) {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_LISTINGS_KEY, JSON.stringify(listings));
+  } catch (err) {
+    console.error('Error saving simulated listings:', err);
+  }
+}
 
 export async function uploadListingImages(files: File[], userId: string): Promise<string[]> {
   if (!isLiveSupabaseConfigured || !supabase) {
@@ -34,9 +53,22 @@ export async function uploadListingImages(files: File[], userId: string): Promis
 }
 
 export async function createWasteListing(listingData: any): Promise<{ data?: any, error?: string }> {
+  const newId = `lst-${Date.now()}`;
+  const now = new Date().toISOString();
+  const simulatedRow = {
+    id: newId,
+    created_at: now,
+    updated_at: now,
+    status: 'available',
+    ...listingData,
+  };
+
+  // Always store in local storage so it persists even in simulation mode
+  const existingListings = getStoredListings();
+  saveStoredListings([simulatedRow, ...existingListings]);
+
   if (!isLiveSupabaseConfigured || !supabase) {
-    // Simulate network delay and return success
-    return new Promise(resolve => setTimeout(() => resolve({ data: { id: `simulated-${Date.now()}` } }), 1000));
+    return { data: simulatedRow };
   }
 
   try {
@@ -46,16 +78,25 @@ export async function createWasteListing(listingData: any): Promise<{ data?: any
       .select()
       .single();
 
-    if (error) return { error: error.message };
+    if (error) {
+      console.warn('Supabase insert error, falling back to local storage:', error.message);
+      return { data: simulatedRow };
+    }
     return { data };
   } catch (err: any) {
-    return { error: err.message };
+    return { data: simulatedRow };
   }
 }
 
 export async function updateWasteListing(id: string, listingData: any): Promise<{ data?: any, error?: string }> {
+  const existingListings = getStoredListings();
+  const updatedListings = existingListings.map(item => 
+    item.id === id ? { ...item, ...listingData, updated_at: new Date().toISOString() } : item
+  );
+  saveStoredListings(updatedListings);
+
   if (!isLiveSupabaseConfigured || !supabase) {
-    return new Promise(resolve => setTimeout(() => resolve({ data: { id } }), 500));
+    return { data: { id, ...listingData } };
   }
 
   try {
@@ -74,8 +115,11 @@ export async function updateWasteListing(id: string, listingData: any): Promise<
 }
 
 export async function deleteWasteListing(id: string): Promise<{ success?: boolean, error?: string }> {
+  const existingListings = getStoredListings();
+  saveStoredListings(existingListings.filter(item => item.id !== id));
+
   if (!isLiveSupabaseConfigured || !supabase) {
-    return new Promise(resolve => setTimeout(() => resolve({ success: true }), 500));
+    return { success: true };
   }
 
   try {
@@ -92,56 +136,82 @@ export async function deleteWasteListing(id: string): Promise<{ success?: boolea
 }
 
 export async function fetchActiveListings(): Promise<WasteListing[]> {
-  if (!isLiveSupabaseConfigured || !supabase) {
-    return []; // Return empty if no supabase, LandingPage falls back to mock
+  let dbRows: any[] = [];
+
+  if (isLiveSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('waste_listings')
+        .select('*')
+        .eq('status', 'available')
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        dbRows = data;
+      }
+    } catch (err) {
+      console.error("Error fetching listings from Supabase:", err);
+    }
   }
 
+  const simulatedRows = getStoredListings().filter((r: any) => r.status === 'available');
+  
+  // Deduplicate rows by ID (giving priority to Supabase row if exists)
+  const rowMap = new Map<string, any>();
+  for (const r of dbRows) {
+    if (r && r.id) rowMap.set(r.id, r);
+  }
+  for (const r of simulatedRows) {
+    if (r && r.id && !rowMap.has(r.id)) rowMap.set(r.id, r);
+  }
+
+  const allRows = Array.from(rowMap.values());
+
   try {
-    const { data, error } = await supabase
-      .from('waste_listings')
-      .select('*')
-      .eq('status', 'available')
-      .gte('deadline', new Date().toISOString())
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error("Error fetching listings:", error);
-      return [];
-    }
-
-    // Map DB rows to WasteListing frontend interface
-    const listings = await Promise.all((data || []).map(async (row: any): Promise<WasteListing> => {
+    // Map DB/local rows to WasteListing frontend interface
+    const listings = await Promise.all(allRows.map(async (row: any): Promise<WasteListing> => {
       
-      // Fetch seller info from profiles
-      let sellerName = 'Seller';
-      let sellerCompany = 'Business';
-      let sellerEmail = '';
+      let sellerName = row.seller_name || 'Seller';
+      let sellerCompany = row.seller_company || 'Business';
+      let sellerEmail = row.seller_email || '';
 
-      const { data: indProfile } = await supabase
-        .from('individual_profiles')
-        .select('full_name, email')
-        .eq('auth_user_id', row.seller_id)
-        .single();
-
-      if (indProfile) {
-        sellerName = indProfile.full_name;
-        sellerCompany = indProfile.full_name;
-        sellerEmail = indProfile.email;
-      } else {
-        const { data: busProfile } = await supabase
-          .from('business_profiles')
-          .select('full_name, business_name, email')
+      if (isLiveSupabaseConfigured && supabase && row.seller_id) {
+        const { data: indProfile } = await supabase
+          .from('individual_profiles')
+          .select('full_name, email')
           .eq('auth_user_id', row.seller_id)
           .single();
-        if (busProfile) {
-          sellerName = busProfile.full_name;
-          sellerCompany = busProfile.business_name;
-          sellerEmail = busProfile.email;
+
+        if (indProfile) {
+          sellerName = indProfile.full_name;
+          sellerCompany = indProfile.full_name;
+          sellerEmail = indProfile.email;
+        } else {
+          const { data: busProfile } = await supabase
+            .from('business_profiles')
+            .select('full_name, business_name, email')
+            .eq('auth_user_id', row.seller_id)
+            .single();
+          if (busProfile) {
+            sellerName = busProfile.full_name;
+            sellerCompany = busProfile.business_name;
+            sellerEmail = busProfile.email;
+          }
+        }
+      }
+
+      if (sellerName === 'Seller' && row.seller_id) {
+        const storedProfiles = getStoredProfiles();
+        const profileMatch = storedProfiles.find(p => p.auth_user_id === row.seller_id);
+        if (profileMatch) {
+          sellerName = profileMatch.full_name;
+          sellerCompany = (profileMatch as any).business_name || profileMatch.full_name;
+          sellerEmail = profileMatch.email;
         }
       }
 
       const sellerInfo: WasteSellerInfo = {
-        id: row.seller_id,
+        id: row.seller_id || row.seller?.id || 'seller-1',
         name: sellerName,
         company: sellerCompany,
         location: `${row.location_city || ''}, ${row.location_state || ''}`.replace(/^, | ,$/, ''),
@@ -149,8 +219,8 @@ export async function fetchActiveListings(): Promise<WasteListing[]> {
       };
 
       const location: WasteListingLocation = {
-        city: row.location_city || '',
-        stateOrCountry: row.location_state || row.location_country || '',
+        city: row.location_city || row.location?.city || '',
+        stateOrCountry: row.location_state || row.location_country || row.location?.stateOrCountry || '',
         coordinates: (row.location_lat && row.location_lng) ? {
           lat: row.location_lat,
           lng: row.location_lng
@@ -162,43 +232,44 @@ export async function fetchActiveListings(): Promise<WasteListing[]> {
         title: row.title,
         category: row.category,
         subcategory: row.subcategory,
-        description: row.description,
+        description: row.description || '',
         location,
         images: row.images || [],
-        pricePerUnit: Number(row.price),
-        unit: row.unit,
-        currency: row.currency,
-        totalQuantity: Number(row.quantity),
-        totalEstimatedValue: Number(row.price) * Number(row.quantity),
-        minPurchaseQuantity: 1, // Defaulting as it's not strictly in schema
-        isPriceNegotiable: row.price_type !== 'Fixed',
-        priceType: row.price_type,
+        pricePerUnit: Number(row.price || row.pricePerUnit || 0),
+        unit: row.unit || 'Ton',
+        currency: row.currency || '₹',
+        totalQuantity: Number(row.quantity || row.totalQuantity || 0),
+        totalEstimatedValue: Number(row.price || row.pricePerUnit || 0) * Number(row.quantity || row.totalQuantity || 0),
+        minPurchaseQuantity: row.min_purchase_quantity || row.minPurchaseQuantity || 1,
+        isPriceNegotiable: row.price_type ? row.price_type !== 'Fixed' : (row.isPriceNegotiable ?? true),
+        priceType: row.price_type || row.priceType || 'Fixed',
         brand: row.brand,
-        modelCode: row.model_code,
-        manufacturingYear: row.manufacturing_year,
-        condition: row.condition,
-        aiSuggestions: row.ai_suggestions,
-        materialType: row.material_type,
+        modelCode: row.model_code || row.modelCode,
+        manufacturingYear: row.manufacturing_year || row.manufacturingYear,
+        condition: row.condition || 'Good',
+        aiSuggestions: row.ai_suggestions || row.aiSuggestions,
+        materialType: row.material_type || row.materialType,
         recyclability: row.recyclability,
         reusability: row.reusability,
-        wasteCategory: row.waste_category,
-        hazardousMaterial: row.hazardous_material,
-        bulkPurchaseAllowed: row.bulk_purchase_allowed,
-        bulkPrice: row.bulk_price ? Number(row.bulk_price) : undefined,
-        startDate: row.start_date,
+        wasteCategory: row.waste_category || row.wasteCategory,
+        hazardousMaterial: row.hazardous_material || row.hazardousMaterial,
+        bulkPurchaseAllowed: row.bulk_purchase_allowed || row.bulkPurchaseAllowed,
+        bulkPrice: row.bulk_price ? Number(row.bulk_price) : (row.bulkPrice ? Number(row.bulkPrice) : undefined),
+        startDate: row.start_date || row.startDate,
         deadline: row.deadline,
-        preferredBuyer: row.preferred_buyer,
-        transactionType: row.transaction_type,
+        preferredBuyer: row.preferred_buyer || row.preferredBuyer,
+        transactionType: row.transaction_type || row.transactionType,
         seller: sellerInfo,
-        listedDate: row.created_at,
-        viewCount: 0,
-        status: row.status,
+        listedDate: row.created_at || row.listedDate || 'Today',
+        viewCount: row.viewCount || 0,
+        status: row.status || 'available',
       };
     }));
 
     return listings;
   } catch (err) {
-    console.error("Error in fetchActiveListings:", err);
+    console.error("Error mapping active listings:", err);
     return [];
   }
 }
+

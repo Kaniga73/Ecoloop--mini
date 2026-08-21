@@ -8,7 +8,7 @@ import { ListWasteModal } from "../components/common/ListWasteModal";
 import { MakeOfferModal } from "../components/common/MakeOfferModal";
 import { SellPage } from "./SellPage";
 import { PurchaseRecord } from "../components/common/DashboardView";
-import { initialListings, currentUserProfiles } from "../data/mockListings";
+import { currentUserProfiles } from "../data/mockListings";
 import { WasteListing, UserProfile, AuthView } from "../types";
 import { useAuth } from "../hooks/useAuth";
 import { Search } from "lucide-react";
@@ -30,18 +30,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const { logout, profile, user } = useAuth();
 
   // State management — purchases start empty [] by default until buyer purchases real items
-  const [allListings, setAllListings] = useState<WasteListing[]>(propListings || initialListings);
+  const [allListings, setAllListings] = useState<WasteListing[]>(propListings || []);
   const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(isLoadingListings);
 
   const fetchAndSetListings = () => {
     setIsLoading(true);
     fetchActiveListings().then(fetchedListings => {
-      if (fetchedListings.length > 0) {
-        setAllListings([...fetchedListings, ...initialListings]);
-      } else {
-        setAllListings([...initialListings]);
-      }
+      setAllListings(fetchedListings || []);
     }).finally(() => {
       setIsLoading(false);
     });
@@ -62,9 +58,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [maxQuantity, setMaxQuantity] = useState<string>("");
   const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc" | "quantity">("newest");
   const [selectedListing, setSelectedListing] = useState<WasteListing | null>(null);
-  const [favorites, setFavorites] = useState<Set<string>>(
-    new Set(["listing-aluminum-coimbatore-20", "listing-pet-tiruppur-15"])
-  );
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [currentUserIndex, setCurrentUserIndex] = useState<number>(0);
 
   // List Waste Modal state
@@ -145,13 +139,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       // Optimistically remove from UI
       setAllListings((prev) => prev.filter((item) => item.id !== listing.id));
       
-      // Remove from backend if it's a real listing
-      if (!listing.id.startsWith("listing-")) {
-        const result = await deleteWasteListing(listing.id);
-        if (result.error) {
-          alert(`Failed to delete from database: ${result.error}`);
-          // Rollback could be implemented here
-        }
+      const result = await deleteWasteListing(listing.id);
+      if (result.error) {
+        alert(`Failed to delete listing: ${result.error}`);
       }
     }
   };
@@ -163,23 +153,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         prev.map((item) => (item.id === listingData.id ? ({ ...item, ...listingData } as WasteListing) : item))
       );
       
-      // Update in backend if it's a real listing
-      if (!listingData.id.startsWith("listing-")) {
-        const updateData = {
-          title: listingData.title,
-          category: listingData.category,
-          description: listingData.description,
-          quantity: listingData.totalQuantity,
-          unit: listingData.unit,
-          price: listingData.pricePerUnit,
-          currency: listingData.currency,
-          condition: listingData.condition,
-          location_city: listingData.location?.city,
-        };
-        const result = await updateWasteListing(listingData.id, updateData);
-        if (result.error) {
-          alert(`Failed to update database: ${result.error}`);
-        }
+      const updateData = {
+        title: listingData.title,
+        category: listingData.category,
+        description: listingData.description,
+        quantity: listingData.totalQuantity,
+        unit: listingData.unit,
+        price: listingData.pricePerUnit,
+        currency: listingData.currency,
+        condition: listingData.condition,
+        location_city: listingData.location?.city,
+      };
+      const result = await updateWasteListing(listingData.id, updateData);
+      if (result.error) {
+        alert(`Failed to update listing: ${result.error}`);
       }
     } else {
       const newListing: WasteListing = {
