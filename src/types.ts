@@ -146,6 +146,23 @@ export interface WasteSellerInfo {
   avatar?: string;
 }
 
+export interface PurchaseRecord {
+  id: string;
+  listingId?: string;
+  productTitle: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  amount: number;
+  unitPrice?: number;
+  currency: string;
+  status: "Completed" | "Pending" | "Shipped" | "Cancelled";
+  orderedDate: string;
+  image?: string;
+  seller?: PartyDetails;
+  buyer?: PartyDetails;
+}
+
 export interface WasteListing {
   id: string;
   title: string;
@@ -158,6 +175,9 @@ export interface WasteListing {
   unit: string;
   currency: string;
   totalQuantity: number;
+  originalQuantity?: number;
+  soldQuantity?: number;
+  remainingQuantity?: number;
   totalEstimatedValue: number;
   minPurchaseQuantity: number;
   isPriceNegotiable: boolean;
@@ -188,6 +208,7 @@ export interface WasteListing {
   transactionType?: string;
   seller: WasteSellerInfo;
   buyer?: PartyDetails;
+  purchaseHistory?: PurchaseRecord[];
   listedDate: string;
   viewCount: number;
   status: 'available' | 'reserved' | 'sold' | 'expired';

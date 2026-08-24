@@ -207,14 +207,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const handleSubmitOffer = (listing: WasteListing, quantity: number, pricePerUnit: number) => {
     const newPurchase: PurchaseRecord = {
       id: `pur-${Date.now()}`,
+      listingId: listing.id,
       productTitle: listing.title,
       category: listing.category,
       quantity,
-      unit: listing.unit,
+      unit: listing.unit || "kg",
       amount: quantity * pricePerUnit,
       unitPrice: pricePerUnit,
       currency: listing.currency || "₹",
-      status: "Pending",
+      status: "Completed",
       orderedDate: new Date().toISOString().split("T")[0],
       image: listing.images[0],
       seller: {
@@ -237,6 +238,31 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       },
     };
     setPurchases((prev) => [newPurchase, ...prev]);
+
+    // Update listing's sold quantity, remaining quantity, purchase history, and auto sold-out status
+    setAllListings((prev) =>
+      prev.map((item) => {
+        if (item.id === listing.id) {
+          const originalQuantity = item.originalQuantity ?? item.totalQuantity ?? 0;
+          const currentSold = item.soldQuantity ?? 0;
+          const soldQuantity = currentSold + quantity;
+          const remainingQuantity = Math.max(0, originalQuantity - soldQuantity);
+          const status = remainingQuantity <= 0 ? "sold" : item.status;
+          const purchaseHistory = [...(item.purchaseHistory || []), newPurchase];
+          return {
+            ...item,
+            originalQuantity,
+            soldQuantity,
+            remainingQuantity,
+            totalQuantity: remainingQuantity,
+            status,
+            purchaseHistory,
+            buyer: newPurchase.buyer,
+          };
+        }
+        return item;
+      })
+    );
   };
 
   // Filtered & Sorted listings for Marketplace

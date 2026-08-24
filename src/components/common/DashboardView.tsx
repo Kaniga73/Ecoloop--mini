@@ -18,24 +18,9 @@ import {
   Heart,
   ShoppingCart,
 } from "lucide-react";
-import { WasteListing, DealOffer, UserProfile, PartyDetails } from "../../types";
+import { WasteListing, DealOffer, UserProfile, PartyDetails, PurchaseRecord } from "../../types";
 
-// Shape for a purchase row shown in "My Purchases (Buying)".
-export interface PurchaseRecord {
-  id: string;
-  productTitle: string;
-  category: string;
-  quantity: number;
-  unit: string;
-  amount: number;
-  unitPrice?: number;
-  currency: string;
-  status: "Completed" | "Pending" | "Shipped" | "Cancelled";
-  orderedDate: string;
-  image?: string;
-  seller?: PartyDetails;
-  buyer?: PartyDetails;
-}
+export type { PurchaseRecord };
 
 interface DashboardViewProps {
   listings: WasteListing[];
@@ -57,6 +42,10 @@ interface TransactionDetailModalItem {
   id: string;
   productTitle: string;
   category: string;
+  originalQuantity: number;
+  soldQuantity: number;
+  remainingQuantity: number;
+  unit: string;
   quantity: string;
   amount: string;
   unitPrice?: string;
@@ -65,6 +54,7 @@ interface TransactionDetailModalItem {
   image?: string;
   seller: PartyDetails;
   buyer?: PartyDetails;
+  purchaseHistory?: PurchaseRecord[];
   type: "listing" | "purchase";
 }
 
@@ -73,15 +63,19 @@ const statusPillClasses: Record<string, string> = {
   Active: "bg-emerald-50 text-emerald-700 border-emerald-200",
   reserved: "bg-amber-50 text-amber-700 border-amber-200",
   Pending: "bg-amber-50 text-amber-700 border-amber-200",
-  sold: "bg-blue-50 text-blue-700 border-blue-200",
-  Sold: "bg-blue-50 text-blue-700 border-blue-200",
+  sold: "bg-rose-50 text-rose-700 border-rose-200",
+  Sold: "bg-rose-50 text-rose-700 border-rose-200",
+  "Sold Out": "bg-rose-50 text-rose-700 border-rose-200",
   Shipped: "bg-blue-50 text-blue-700 border-blue-200",
   Completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
   Cancelled: "bg-rose-50 text-rose-700 border-rose-200",
 };
 
-const statusLabel = (status: string) =>
-  status ? status.charAt(0).toUpperCase() + status.slice(1) : "";
+const statusLabel = (status: string) => {
+  if (!status) return "";
+  if (status.toLowerCase() === "sold" || status === "Sold Out") return "Sold Out";
+  return status.charAt(0).toUpperCase() + status.slice(1);
+};
 
 const formatListedDate = (dateStr: string) => {
   if (!dateStr) return "N/A";
@@ -125,8 +119,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return false;
   });
 
-  const activeListings = myListings.filter((l) => l.status === "available");
-  const soldListings = myListings.filter((l) => l.status === "sold");
+  const activeListings = myListings.filter((l) => l.status === "available" && (l.remainingQuantity === undefined || l.remainingQuantity > 0));
+  const soldListings = myListings.filter((l) => l.status === "sold" || (l.remainingQuantity !== undefined && l.remainingQuantity <= 0));
   const totalEarnings = soldListings.reduce(
     (sum, l) => sum + (l.totalEstimatedValue || 0),
     0
@@ -153,20 +147,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       avatar: l.seller.avatar || currentUser.avatar || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
     };
 
-    const buyer: PartyDetails | undefined = l.buyer;
+    const originalQuantity = l.originalQuantity ?? l.totalQuantity ?? 0;
+    
+    // Combine purchases matching this listing
+    const matchingPurchases = purchases.filter((p) => p.listingId === l.id || p.productTitle === l.title);
+    const combinedHistory = [...(l.purchaseHistory || [])];
+    for (const hp of matchingPurchases) {
+      if (!combinedHistory.some((item) => item.id === hp.id)) {
+        combinedHistory.push(hp);
+      }
+    }
+
+    const soldQuantity = l.soldQuantity ?? combinedHistory.reduce((sum, p) => sum + (p.quantity || 0), 0);
+    const remainingQuantity = l.remainingQuantity ?? Math.max(0, originalQuantity - soldQuantity);
+    const effectiveStatus = remainingQuantity <= 0 ? "sold" : l.status;
 
     setSelectedDetail({
       id: l.id,
       productTitle: l.title,
       category: l.category,
-      quantity: `${l.totalQuantity} ${l.unit}`,
-      amount: `${l.currency}${(l.totalEstimatedValue || l.pricePerUnit * l.totalQuantity).toLocaleString("en-IN")}`,
-      unitPrice: `${l.currency}${l.pricePerUnit.toLocaleString("en-IN")} / ${l.unit}`,
-      status: l.status,
+      originalQuantity,
+      soldQuantity,
+      remainingQuantity,
+      unit: l.unit || "kg",
+      quantity: `${originalQuantity} ${l.unit || "kg"}`,
+      amount: `${l.currency || "₹"}${((l.totalEstimatedValue || l.pricePerUnit * originalQuantity)).toLocaleString("en-IN")}`,
+      unitPrice: `${l.currency || "₹"}${l.pricePerUnit.toLocaleString("en-IN")} / ${l.unit || "kg"}`,
+      status: effectiveStatus,
       date: formatListedDate(l.listedDate),
       image: l.images[0],
       seller,
-      buyer,
+      buyer: l.buyer,
+      purchaseHistory: combinedHistory,
       type: "listing",
     });
   };
@@ -195,6 +207,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       id: p.id,
       productTitle: p.productTitle,
       category: p.category,
+      originalQuantity: p.quantity,
+      soldQuantity: p.quantity,
+      remainingQuantity: 0,
+      unit: p.unit || "kg",
       quantity: `${p.quantity} ${p.unit}`,
       amount: `${p.currency}${p.amount.toLocaleString("en-IN")}`,
       unitPrice: p.unitPrice ? `${p.currency}${p.unitPrice.toLocaleString("en-IN")} / ${p.unit}` : undefined,
@@ -203,6 +219,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       image: p.image,
       seller,
       buyer,
+      purchaseHistory: [p],
       type: "purchase",
     });
   };
@@ -318,56 +335,60 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </td>
                 </tr>
               ) : (
-                myListings.map((l) => (
-                  <tr key={l.id} className="hover:bg-neutral-50/70 transition-colors">
-                    <td className="px-5 py-3 align-middle">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={l.images[0]}
-                          alt={l.title}
-                          className="w-9 h-9 rounded-lg object-cover border border-neutral-200 shrink-0"
-                        />
-                        <span className="font-semibold text-neutral-900 truncate max-w-[220px]">{l.title}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3 text-neutral-600 align-middle">{l.category}</td>
-                    <td className="px-5 py-3 align-middle">
-                      <span
-                        className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
-                          statusPillClasses[l.status] || "bg-neutral-100 text-neutral-600 border-neutral-200"
-                        }`}
-                      >
-                        {statusLabel(l.status)}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 align-middle">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleViewListingDetails(l)}
-                          className="px-2.5 py-1.5 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-700 hover:border-emerald-500 hover:text-emerald-700 hover:bg-emerald-50/50 transition-all flex items-center gap-1.5 cursor-pointer"
-                          title="View complete transaction details"
+                myListings.map((l) => {
+                  const isSoldOut = l.status === "sold" || (l.remainingQuantity !== undefined && l.remainingQuantity <= 0);
+                  const displayStatus = isSoldOut ? "sold" : l.status;
+                  return (
+                    <tr key={l.id} className="hover:bg-neutral-50/70 transition-colors">
+                      <td className="px-5 py-3 align-middle">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={l.images[0]}
+                            alt={l.title}
+                            className="w-9 h-9 rounded-lg object-cover border border-neutral-200 shrink-0"
+                          />
+                          <span className="font-semibold text-neutral-900 truncate max-w-[220px]">{l.title}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 text-neutral-600 align-middle">{l.category}</td>
+                      <td className="px-5 py-3 align-middle">
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                            statusPillClasses[displayStatus] || "bg-neutral-100 text-neutral-600 border-neutral-200"
+                          }`}
                         >
-                          <Eye className="w-3.5 h-3.5 text-emerald-600" />
-                          View Details
-                        </button>
-                        <button
-                          onClick={() => (onEditListing ? onEditListing(l) : onOpenListing(l))}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
-                          title="Edit listing"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => onDeleteListing && onDeleteListing(l)}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
-                          title="Delete listing"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                          {statusLabel(displayStatus)}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 align-middle">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleViewListingDetails(l)}
+                            className="px-2.5 py-1.5 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-700 hover:border-emerald-500 hover:text-emerald-700 hover:bg-emerald-50/50 transition-all flex items-center gap-1.5 cursor-pointer"
+                            title="View complete transaction details"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                            View Details
+                          </button>
+                          <button
+                            onClick={() => (onEditListing ? onEditListing(l) : onOpenListing(l))}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
+                            title="Edit listing"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => onDeleteListing && onDeleteListing(l)}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="Delete listing"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -574,7 +595,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </button>
             </div>
 
-            <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+            <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
               {/* Product Summary Banner */}
               <div className="bg-neutral-50 rounded-2xl p-4 border border-neutral-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5">
@@ -592,12 +613,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <h4 className="text-sm font-bold text-neutral-900">
                       {selectedDetail.productTitle}
                     </h4>
-                    <p className="text-xs text-neutral-500 mt-0.5">
-                      Quantity: <strong className="text-neutral-800 font-semibold">{selectedDetail.quantity}</strong>
-                      {selectedDetail.unitPrice && (
-                        <span> • Unit Price: <strong className="text-neutral-800 font-semibold">{selectedDetail.unitPrice}</strong></span>
-                      )}
-                    </p>
+                    {selectedDetail.unitPrice && (
+                      <p className="text-xs text-neutral-600 mt-0.5">
+                        Unit Price: <strong className="text-neutral-900 font-semibold">{selectedDetail.unitPrice}</strong>
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="text-left sm:text-right shrink-0">
@@ -615,6 +635,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <span className="text-[11px] text-neutral-400">{selectedDetail.date}</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Quantity Summary Card */}
+              <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-4 space-y-2">
+                <h5 className="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <ShoppingCart className="w-3.5 h-3.5 text-emerald-700" />
+                  Quantity Summary
+                </h5>
+                <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-neutral-800 bg-white/90 p-3 rounded-xl border border-emerald-100 shadow-2xs">
+                  <div className="flex items-center gap-1">
+                    <span className="text-neutral-500">Listed:</span>
+                    <strong className="text-neutral-900 font-bold">{selectedDetail.originalQuantity} {selectedDetail.unit}</strong>
+                  </div>
+                  <span className="text-neutral-300">•</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-neutral-500">Sold:</span>
+                    <strong className="text-amber-700 font-bold">{selectedDetail.soldQuantity} {selectedDetail.unit}</strong>
+                  </div>
+                  <span className="text-neutral-300">•</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-neutral-500">Remaining:</span>
+                    <strong className={selectedDetail.remainingQuantity === 0 ? "text-rose-600 font-extrabold" : "text-emerald-700 font-extrabold"}>
+                      {selectedDetail.remainingQuantity} {selectedDetail.unit}
+                    </strong>
+                  </div>
+                </div>
+                <p className="text-[11px] text-neutral-600 font-medium px-1">
+                  Listed: {selectedDetail.originalQuantity} {selectedDetail.unit}, Sold: {selectedDetail.soldQuantity} {selectedDetail.unit}, Remaining: {selectedDetail.remainingQuantity} {selectedDetail.unit}
+                </p>
               </div>
 
               {/* Seller & Buyer Party Cards */}
@@ -654,16 +703,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <span className="text-neutral-400 block text-[10px]">Email Address</span>
                         <a href={`mailto:${selectedDetail.seller.email}`} className="text-emerald-700 hover:underline font-medium">
                           {selectedDetail.seller.email || "N/A"}
-                        </a>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-2">
-                      <Phone className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="text-neutral-400 block text-[10px]">Phone Number</span>
-                        <a href={`tel:${selectedDetail.seller.phone}`} className="text-neutral-800 font-medium hover:text-emerald-700">
-                          {selectedDetail.seller.phone || "N/A"}
                         </a>
                       </div>
                     </div>
@@ -719,16 +758,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </div>
 
                       <div className="flex items-start gap-2">
-                        <Phone className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
-                        <div>
-                          <span className="text-neutral-400 block text-[10px]">Phone Number</span>
-                          <a href={`tel:${selectedDetail.buyer.phone}`} className="text-neutral-800 font-medium hover:text-emerald-700">
-                            {selectedDetail.buyer.phone || "N/A"}
-                          </a>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-2">
                         <MapPin className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
                         <div>
                           <span className="text-neutral-400 block text-[10px]">Delivery Address</span>
@@ -740,11 +769,63 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 ) : (
                   <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs flex flex-col items-center justify-center text-neutral-400 space-y-2 min-h-[150px]">
                     <User className="w-8 h-8 opacity-20" />
-                    <span className="text-xs font-medium">No buyer assigned yet</span>
+                    <span className="text-xs font-medium">No primary buyer assigned yet</span>
                   </div>
                 )}
               </div>
 
+              {/* Purchase History Section */}
+              <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
+                  <h5 className="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-blue-600" />
+                    Purchase History
+                  </h5>
+                  <span className="text-[10px] text-blue-700 font-semibold bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                    {selectedDetail.purchaseHistory?.length || 0} {selectedDetail.purchaseHistory?.length === 1 ? "Buyer" : "Buyers"}
+                  </span>
+                </div>
+
+                {selectedDetail.purchaseHistory && selectedDetail.purchaseHistory.length > 0 ? (
+                  <div className="space-y-3 divide-y divide-neutral-100">
+                    {selectedDetail.purchaseHistory.map((p, idx) => {
+                      const buyerName = p.buyer?.name || (p as any).buyerName || `Buyer ${String.fromCharCode(65 + idx)}`;
+                      return (
+                        <div key={p.id || idx} className={`${idx > 0 ? "pt-3" : ""} flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs`}>
+                          <div className="space-y-1">
+                            <div className="text-neutral-800 font-medium leading-snug">
+                              <span className="font-semibold text-neutral-900">{buyerName}</span>
+                              {" – "}
+                              <span className="font-bold text-emerald-700">{p.quantity} {p.unit || selectedDetail.unit}</span>
+                              {" – "}
+                              <span className="font-bold text-neutral-900">{p.currency || '₹'}{p.amount.toLocaleString("en-IN")}</span>
+                              {" – "}
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border ${statusPillClasses[p.status] || "bg-emerald-50 text-emerald-700 border-emerald-200"}`}>
+                                {p.status}
+                              </span>
+                            </div>
+                            {p.buyer?.company && (
+                              <span className="text-[11px] text-neutral-400 block">{p.buyer.company}</span>
+                            )}
+                          </div>
+
+                          <div className="text-left sm:text-right shrink-0">
+                            <span className="text-[11px] text-neutral-400 block">{p.orderedDate}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="py-4 flex flex-col items-center justify-center text-neutral-400 space-y-1.5 text-center">
+                    <User className="w-6 h-6 opacity-30" />
+                    <p className="text-xs font-medium text-neutral-600">No purchase history yet</p>
+                    <p className="text-[11px] text-neutral-400 max-w-sm">
+                      When buyers purchase quantities from this listing, each transaction will be recorded here separately.
+                    </p>
+                  </div>
+                )}
+              </div>
               {/* Compliance & Verification Badge */}
               <div className="bg-emerald-50/60 rounded-xl p-3.5 border border-emerald-200/60 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 text-emerald-900 font-medium">

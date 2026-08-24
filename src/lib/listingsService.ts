@@ -238,7 +238,10 @@ export async function fetchActiveListings(): Promise<WasteListing[]> {
         pricePerUnit: Number(row.price || row.pricePerUnit || 0),
         unit: row.unit || 'Ton',
         currency: row.currency || '₹',
-        totalQuantity: Number(row.quantity || row.totalQuantity || 0),
+        totalQuantity: row.remainingQuantity !== undefined ? row.remainingQuantity : Number(row.quantity || row.totalQuantity || 0),
+        originalQuantity: row.originalQuantity ?? Number(row.quantity || row.totalQuantity || 0),
+        soldQuantity: row.soldQuantity ?? 0,
+        remainingQuantity: row.remainingQuantity ?? Math.max(0, (row.originalQuantity ?? Number(row.quantity || row.totalQuantity || 0)) - (row.soldQuantity ?? 0)),
         totalEstimatedValue: Number(row.price || row.pricePerUnit || 0) * Number(row.quantity || row.totalQuantity || 0),
         minPurchaseQuantity: row.min_purchase_quantity || row.minPurchaseQuantity || 1,
         isPriceNegotiable: row.price_type ? row.price_type !== 'Fixed' : (row.isPriceNegotiable ?? true),
@@ -260,9 +263,11 @@ export async function fetchActiveListings(): Promise<WasteListing[]> {
         preferredBuyer: row.preferred_buyer || row.preferredBuyer,
         transactionType: row.transaction_type || row.transactionType,
         seller: sellerInfo,
+        buyer: row.buyer,
+        purchaseHistory: row.purchaseHistory || [],
         listedDate: row.created_at || row.listedDate || 'Today',
         viewCount: row.viewCount || 0,
-        status: row.status || 'available',
+        status: (row.remainingQuantity !== undefined && row.remainingQuantity <= 0) ? 'sold' : (row.status || 'available'),
       };
     }));
 
