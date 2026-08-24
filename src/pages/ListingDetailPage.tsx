@@ -33,6 +33,16 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({
 }) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
+  const formatListedDate = (date: string | Date) => {
+  const d = new Date(date);
+
+  return d.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+   
+  });
+};
 
   const handleShare = () => {
     navigator.clipboard?.writeText(window.location.href);
@@ -126,14 +136,8 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({
                 {listing.location.industrialPark ? `${listing.location.industrialPark}, ` : ""}
                 {listing.location.city}, {listing.location.stateOrCountry}
               </span>
-              <span className="flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-neutral-400 shrink-0" />
-                Listed {listing.listedDate}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Eye className="w-4 h-4 text-neutral-400 shrink-0" />
-                {listing.viewCount} views
-              </span>
+             {formatListedDate(listing.listedDate)}
+             
             </div>
           </div>
 
@@ -156,10 +160,7 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({
                 <span className="text-xs text-neutral-500 block mb-0.5">Minimum Purchase</span>
                 <span className="font-bold text-neutral-900 text-base">{listing.minPurchaseQuantity} {listing.unit}s</span>
               </div>
-              <div className="p-3 bg-neutral-50 rounded-xl">
-                <span className="text-xs text-neutral-500 block mb-0.5">Pricing Terms</span>
-                <span className="font-bold text-neutral-900 text-base">{listing.isPriceNegotiable ? "Negotiable" : "Fixed Ask"}</span>
-              </div>
+
               <div className="p-3 bg-neutral-50 rounded-xl">
                 <span className="text-xs text-neutral-500 block mb-0.5">State & Region</span>
                 <span className="font-bold text-neutral-900 text-base">{listing.location.stateOrCountry || "Tamil Nadu, India"}</span>
