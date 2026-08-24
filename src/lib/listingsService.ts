@@ -146,8 +146,16 @@ export async function fetchActiveListings(): Promise<WasteListing[]> {
         .eq('status', 'available')
         .order('created_at', { ascending: false });
 
-      if (!error && data) {
+      if (!error && data && data.length > 0) {
         dbRows = data;
+      } else {
+        const { data: listingsData } = await supabase
+          .from('listings')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (listingsData && listingsData.length > 0) {
+          dbRows = listingsData;
+        }
       }
     } catch (err) {
       console.error("Error fetching listings from Supabase:", err);

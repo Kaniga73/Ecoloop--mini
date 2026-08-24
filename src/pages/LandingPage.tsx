@@ -7,9 +7,10 @@ import { DashboardPage } from "./DashboardPage";
 import { ListWasteModal } from "../components/common/ListWasteModal";
 import { MakeOfferModal } from "../components/common/MakeOfferModal";
 import { SellPage } from "./SellPage";
+import { MessagesPage } from "./MessagesPage";
 import { PurchaseRecord } from "../components/common/DashboardView";
-import { currentUserProfiles } from "../data/mockListings";
-import { WasteListing, UserProfile, AuthView, PartyDetails } from "../types";
+import { currentUserProfiles, initialConversations, initialMessages, initialDealOffers } from "../data/mockListings";
+import { WasteListing, UserProfile, AuthView, PartyDetails, Conversation, ChatMessage, DealOffer } from "../types";
 import { useAuth } from "../hooks/useAuth";
 import { Search } from "lucide-react";
 import { fetchActiveListings, deleteWasteListing, updateWasteListing } from "../lib/listingsService";
@@ -33,6 +34,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [allListings, setAllListings] = useState<WasteListing[]>(propListings || []);
   const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(isLoadingListings);
+
+  // Chat & Negotiations state
+  const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
+  const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>(initialMessages);
+  const [dealOffersMap, setDealOffersMap] = useState<Record<string, DealOffer[]>>(initialDealOffers);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>("conv-1");
 
   const fetchAndSetListings = () => {
     setIsLoading(true);
@@ -258,6 +265,177 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     }
   };
 
+  // Chat & Messaging Handlers
+  const handleStartChat = (listing: WasteListing) => {
+    let existing = conversations.find((c) => c.listingId === listing.id);
+    let convId = existing?.id;
+
+    if (!existing) {
+      convId = `conv-${Date.now()}`;
+      const newConv: Conversation = {
+        id: convId,
+        listingId: listing.id,
+        listingTitle: listing.title,
+        listingImage: listing.images[0],
+        listingPrice: `${listing.currency}${listing.pricePerUnit.toLocaleString("en-IN")} / ${listing.unit}`,
+        buyer: {
+          id: activeUser.id,
+          name: activeUser.name,
+          company: activeUser.company,
+        },
+        seller: {
+          id: listing.seller.id,
+          name: listing.seller.name,
+          company: listing.seller.company,
+        },
+        lastMessage: "Inquiry regarding waste listing specifications.",
+        lastMessageTime: "Just now",
+        unreadCount: 0,
+      };
+
+      setConversations((prev) => [newConv, ...prev]);
+      setMessagesMap((prev) => ({
+        ...prev,
+        [convId]: [
+          {
+            id: `msg-${Date.now()}`,
+            conversationId: convId,
+            senderId: activeUser.id,
+            senderName: activeUser.name,
+            senderRole: (activeUser.role || "buyer") as any,
+            text: `Hello ${listing.seller.name}, I am interested in purchasing ${listing.title}.`,
+            timestamp: "Just now",
+          },
+        ],
+      }));
+    }
+
+    setActiveConversationId(convId);
+    setSelectedListing(null);
+    setActiveTab("messages");
+  };
+
+  const handleSendMessage = (conversationId: string, text: string) => {
+    const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const newMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      conversationId,
+      senderId: activeUser.id,
+      senderName: activeUser.name,
+      senderRole: (activeUser.role || "buyer") as any,
+      text,
+      timestamp: timeStr,
+    };
+
+    setMessagesMap((prev) => ({
+      ...prev,
+      [conversationId]: [...(prev[conversationId] || []), newMsg],
+    }));
+
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === conversationId
+          ? { ...c, lastMessage: text, lastMessageTime: timeStr }
+          : c
+      )
+    );
+  };
+
+  const handleAcceptOffer = (offer: DealOffer) => {
+    // 1. Update deal offer status to Accepted
+    setDealOffersMap((prev) => {
+      const next = { ...prev };
+      for (const key in next) {
+        next[key] = next[key].map((o) => (o.id === offer.id ? { ...o, status: "Accepted" } : o));
+      }
+      return next;
+    });
+
+    // 2. Find target listing and apply sale updates
+    const targetListing = allListings.find((l) => l.id === offer.listingId || l.title === offer.listingTitle);
+    if (targetListing) {
+      const convMatch = conversations.find((c) => c.listingId === targetListing.id || (dealOffersMap[c.id] || []).some((o) => o.id === offer.id));
+      const buyerParty: PartyDetails = {
+        id: offer.buyerId,
+        name: offer.buyerName || convMatch?.buyer.name || "Karthik Sundaram",
+        company: convMatch?.buyer.company || "TN Metal & Polymer Recyclers Pvt Ltd",
+        email: "karthik@tnrecyclers.in",
+        phone: "+91 98401 23456",
+        location: "Guindy Industrial Estate, Chennai, Tamil Nadu",
+      };
+      handleMarkAsSold(targetListing, buyerParty, offer.quantity, offer.offeredPricePerUnit);
+    }
+
+    // 3. Post system message into active chat
+    if (activeConversationId) {
+      const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const sysMsg: ChatMessage = {
+        id: `sys-${Date.now()}`,
+        conversationId: activeConversationId,
+        senderId: "system",
+        senderName: "EcoLoop System",
+        senderRole: "system",
+        text: `Deal Accepted! ${offer.quantity} ${offer.unit}s purchased for ${offer.currency}${offer.totalAmount.toLocaleString("en-IN")}. Inventory updated and order logged.`,
+        timestamp: timeStr,
+      };
+
+      setMessagesMap((prev) => ({
+        ...prev,
+        [activeConversationId]: [...(prev[activeConversationId] || []), sysMsg],
+      }));
+    }
+  };
+
+  const handleRejectOffer = (offer: DealOffer) => {
+    setDealOffersMap((prev) => {
+      const next = { ...prev };
+      for (const key in next) {
+        next[key] = next[key].map((o) => (o.id === offer.id ? { ...o, status: "Rejected" } : o));
+      }
+      return next;
+    });
+
+    if (activeConversationId) {
+      const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const sysMsg: ChatMessage = {
+        id: `sys-${Date.now()}`,
+        conversationId: activeConversationId,
+        senderId: "system",
+        senderName: "EcoLoop System",
+        senderRole: "system",
+        text: `Offer of ${offer.currency}${offer.offeredPricePerUnit}/${offer.unit} declined by user.`,
+        timestamp: timeStr,
+      };
+
+      setMessagesMap((prev) => ({
+        ...prev,
+        [activeConversationId]: [...(prev[activeConversationId] || []), sysMsg],
+      }));
+    }
+  };
+
+  // Delete Conversation / Chat History Handler
+  const handleDeleteConversation = (conversationId: string) => {
+    setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+    setMessagesMap((prev) => {
+      const next = { ...prev };
+      delete next[conversationId];
+      return next;
+    });
+    setDealOffersMap((prev) => {
+      const next = { ...prev };
+      delete next[conversationId];
+      return next;
+    });
+    setActiveConversationId((prev) => {
+      if (prev === conversationId) {
+        const remaining = conversations.filter((c) => c.id !== conversationId);
+        return remaining.length > 0 ? remaining[0].id : null;
+      }
+      return prev;
+    });
+  };
+
   // Buyer Purchasing / Make Offer flow
   const handleOpenMakeOffer = (listing: WasteListing) => {
     setOfferListing(listing);
@@ -265,64 +443,94 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   const handleSubmitOffer = (listing: WasteListing, quantity: number, pricePerUnit: number) => {
-    const newPurchase: PurchaseRecord = {
-      id: `pur-${Date.now()}`,
-      listingId: listing.id,
-      productTitle: listing.title,
-      category: listing.category,
-      quantity,
-      unit: listing.unit || "kg",
-      amount: quantity * pricePerUnit,
-      unitPrice: pricePerUnit,
-      currency: listing.currency || "₹",
-      status: "Completed",
-      orderedDate: new Date().toISOString().split("T")[0],
-      image: listing.images[0],
-      seller: {
-        id: listing.seller.id,
-        name: listing.seller.name,
-        company: listing.seller.company,
-        email: listing.seller.contactEmail || `${listing.seller.name.toLowerCase().replace(/\s+/g, ".")}@example.com`,
-        phone: listing.seller.contactPhone || "+91 98401 00000",
-        location: listing.seller.location || `${listing.location.city}, ${listing.location.stateOrCountry}`,
-        avatar: listing.seller.avatar,
-      },
-      buyer: {
-        id: activeUser.id,
-        name: activeUser.name,
-        company: activeUser.company,
-        email: activeUser.email,
-        phone: (activeUser as any).phone || "+91 98401 23456",
-        location: activeUser.location,
-        avatar: activeUser.avatar,
-      },
-    };
-    setPurchases((prev) => [newPurchase, ...prev]);
+    // 1. Ensure conversation thread exists for this listing
+    let existingConv = conversations.find((c) => c.listingId === listing.id);
+    let convId = existingConv?.id;
 
-    // Update listing's sold quantity, remaining quantity, purchase history, and auto sold-out status
-    setAllListings((prev) =>
-      prev.map((item) => {
-        if (item.id === listing.id) {
-          const originalQuantity = item.originalQuantity ?? item.totalQuantity ?? 0;
-          const currentSold = item.soldQuantity ?? 0;
-          const soldQuantity = currentSold + quantity;
-          const remainingQuantity = Math.max(0, originalQuantity - soldQuantity);
-          const status = remainingQuantity <= 0 ? "sold" : item.status;
-          const purchaseHistory = [...(item.purchaseHistory || []), newPurchase];
-          return {
-            ...item,
-            originalQuantity,
-            soldQuantity,
-            remainingQuantity,
-            totalQuantity: remainingQuantity,
-            status,
-            purchaseHistory,
-            buyer: newPurchase.buyer,
-          };
-        }
-        return item;
-      })
+    if (!existingConv) {
+      convId = `conv-${Date.now()}`;
+      existingConv = {
+        id: convId,
+        listingId: listing.id,
+        listingTitle: listing.title,
+        listingImage: listing.images[0] || "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80",
+        listingPrice: `${listing.currency || "₹"}${listing.pricePerUnit.toLocaleString("en-IN")} / ${listing.unit}`,
+        buyer: {
+          id: activeUser.id,
+          name: activeUser.name,
+          company: activeUser.company,
+        },
+        seller: {
+          id: listing.seller.id,
+          name: listing.seller.name,
+          company: listing.seller.company,
+        },
+        lastMessage: "Submitted deal offer.",
+        lastMessageTime: "Just now",
+        unreadCount: 0,
+      };
+      setConversations((prev) => [existingConv!, ...prev]);
+    }
+
+    const offerId = `offer-${Date.now()}`;
+    const newOffer: DealOffer = {
+      id: offerId,
+      listingId: listing.id,
+      listingTitle: listing.title,
+      buyerId: activeUser.id,
+      buyerName: activeUser.name,
+      sellerId: listing.seller.id,
+      sellerName: listing.seller.name,
+      offeredPricePerUnit: pricePerUnit,
+      quantity,
+      unit: listing.unit || "Ton",
+      totalAmount: quantity * pricePerUnit,
+      currency: listing.currency || "₹",
+      status: "Pending",
+      createdAt: new Date().toISOString(),
+    };
+
+    // Store in dealOffersMap
+    setDealOffersMap((prev) => ({
+      ...prev,
+      [convId]: [...(prev[convId] || []), newOffer],
+    }));
+
+    // Transmit offer as embedded message in chat thread
+    const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const offerMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      conversationId: convId,
+      senderId: activeUser.id,
+      senderName: activeUser.name,
+      senderRole: (activeUser.role || "buyer") as any,
+      text: `Official Offer Transmitted: ${quantity} ${listing.unit || "Ton"}s at ${listing.currency || "₹"}${pricePerUnit.toLocaleString("en-IN")}/${listing.unit || "Ton"} (Total Lot: ${listing.currency || "₹"}${(quantity * pricePerUnit).toLocaleString("en-IN")})`,
+      timestamp: timeStr,
+      offerId: offerId,
+    } as any;
+
+    setMessagesMap((prev) => ({
+      ...prev,
+      [convId]: [...(prev[convId] || []), offerMsg],
+    }));
+
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === convId
+          ? {
+              ...c,
+              lastMessage: `Offer submitted: ${quantity} ${listing.unit}s at ${listing.currency}${pricePerUnit}/${listing.unit}`,
+              lastMessageTime: timeStr,
+            }
+          : c
+      )
     );
+
+    // Close modal, reset selected listing, select active conversation thread, and switch to Messages tab immediately
+    setIsMakeOfferModalOpen(false);
+    setSelectedListing(null);
+    setActiveConversationId(convId);
+    setActiveTab("messages");
   };
 
   // Filtered & Sorted listings for Marketplace
@@ -404,7 +612,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <ListingDetailPage
           listing={selectedListing}
           onBack={() => setSelectedListing(null)}
-          onStartChat={(item) => alert(`Chat started with seller for ${item.title}`)}
+          onStartChat={handleStartChat}
           onOpenMakeOffer={handleOpenMakeOffer}
           isFavorite={favorites.has(selectedListing.id)}
           onToggleFavorite={(id) => handleToggleFavorite(id)}
@@ -469,6 +677,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             onOpenMakeOffer={handleOpenMakeOffer}
             onExploreMarketplace={() => setActiveTab("marketplace")}
             onMarkAsSold={handleMarkAsSold}
+          />
+        ) : activeTab === "messages" ? (
+          <MessagesPage
+            conversations={conversations}
+            activeConversationId={activeConversationId}
+            onSelectConversation={(id) => setActiveConversationId(id)}
+            messages={messagesMap}
+            onSendMessage={handleSendMessage}
+            dealOffers={dealOffersMap}
+            onAcceptOffer={handleAcceptOffer}
+            onRejectOffer={handleRejectOffer}
+            onOpenMakeOffer={handleOpenMakeOffer}
+            onOpenListingSpecs={(listingId) => {
+              const match = allListings.find((l) => l.id === listingId);
+              if (match) setSelectedListing(match);
+            }}
+            onDeleteConversation={handleDeleteConversation}
+            listings={allListings}
+            currentUser={activeUser}
           />
         ) : (
           /* Marketplace View */
@@ -558,6 +785,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       onSelect={(item) => setSelectedListing(item)}
                       isFavorite={favorites.has(listing.id)}
                       onToggleFavorite={(id, e) => handleToggleFavorite(id, e)}
+                      onStartChat={(item) => handleStartChat(item)}
                     />
                   ))}
                 </div>

@@ -1,8 +1,8 @@
--- Drop existing table if migrating from earlier schema
-DROP TABLE IF EXISTS user_profiles;
-DROP TYPE IF EXISTS account_type;
+-- =========================================================
+-- ECOLOOP SUPABASE DATABASE SCHEMA
+-- =========================================================
 
--- Sequences for custom IDs
+-- Sequences for custom profile IDs
 CREATE SEQUENCE IF NOT EXISTS individual_id_seq START 1;
 CREATE SEQUENCE IF NOT EXISTS business_id_seq START 1;
 
@@ -39,27 +39,33 @@ CREATE TABLE IF NOT EXISTS business_profiles (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Enable RLS
+-- Enable RLS for Profiles
 ALTER TABLE individual_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE business_profiles ENABLE ROW LEVEL SECURITY;
 
 -- Policies for individual_profiles
+DROP POLICY IF EXISTS "Users can view their own individual profile" ON individual_profiles;
 CREATE POLICY "Users can view their own individual profile" ON individual_profiles
   FOR SELECT USING (auth.uid() = auth_user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own individual profile" ON individual_profiles;
 CREATE POLICY "Users can insert their own individual profile" ON individual_profiles
   FOR INSERT WITH CHECK (auth.uid() = auth_user_id);
 
+DROP POLICY IF EXISTS "Users can update their own individual profile" ON individual_profiles;
 CREATE POLICY "Users can update their own individual profile" ON individual_profiles
   FOR UPDATE USING (auth.uid() = auth_user_id);
 
 -- Policies for business_profiles
+DROP POLICY IF EXISTS "Users can view their own business profile" ON business_profiles;
 CREATE POLICY "Users can view their own business profile" ON business_profiles
   FOR SELECT USING (auth.uid() = auth_user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own business profile" ON business_profiles;
 CREATE POLICY "Users can insert their own business profile" ON business_profiles
   FOR INSERT WITH CHECK (auth.uid() = auth_user_id);
 
+DROP POLICY IF EXISTS "Users can update their own business profile" ON business_profiles;
 CREATE POLICY "Users can update their own business profile" ON business_profiles
   FOR UPDATE USING (auth.uid() = auth_user_id);
 
@@ -85,108 +91,386 @@ CREATE TRIGGER set_updated_at_business
   FOR EACH ROW
   EXECUTE PROCEDURE handle_updated_at();
 
--- Sequences for listing IDs (optional, using UUID here instead but keeping consistency if they want custom IDs)
-CREATE SEQUENCE IF NOT EXISTS listing_id_seq START 1;
 
--- Waste Listings Table
-CREATE TABLE IF NOT EXISTS waste_listings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  custom_id TEXT DEFAULT 'LST' || TO_CHAR(nextval('listing_id_seq'), 'FM000000'),
-  seller_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  category TEXT NOT NULL,
-  subcategory TEXT,
-  description TEXT NOT NULL,
-  quantity NUMERIC NOT NULL,
-  unit TEXT NOT NULL,
-  brand TEXT,
-  model_code TEXT,
-  manufacturing_year TEXT,
-  condition TEXT NOT NULL,
-  images TEXT[] DEFAULT '{}',
-  
-  -- AI Analysis Data
-  ai_suggestions JSONB DEFAULT '{}'::jsonb,
-  
-  -- Eco Classification (cached from AI or manually set)
-  material_type TEXT,
-  recyclability TEXT,
-  reusability TEXT,
-  waste_category TEXT,
-  hazardous_material BOOLEAN DEFAULT false,
-  
-  -- Pricing
-  price NUMERIC NOT NULL,
-  currency TEXT DEFAULT '₹',
-  price_type TEXT DEFAULT 'Fixed',
-  min_acceptable_price NUMERIC,
-  bulk_purchase_allowed BOOLEAN DEFAULT false,
-  bulk_price NUMERIC,
-  
-  -- Availability
-  start_date TIMESTAMPTZ DEFAULT NOW(),
-  deadline TIMESTAMPTZ NOT NULL,
-  
-  -- Location
-  location_city TEXT,
-  location_state TEXT,
-  location_country TEXT,
-  location_pincode TEXT,
-  location_lat NUMERIC,
-  location_lng NUMERIC,
-  
-  -- Seller Preferences
-  preferred_buyer TEXT DEFAULT 'Both',
-  transaction_type TEXT DEFAULT 'Both',
-  
-  -- Status
-  status TEXT DEFAULT 'available',
-  
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- =========================================================
+-- 1. LISTINGS
+-- =========================================================
+
+create table if not exists listings (
+  id uuid primary key default gen_random_uuid(),
+
+  seller_id uuid not null
+    references auth.users(id) on delete cascade,
+
+  title text not null,
+  price numeric,
+  image_url text,
+
+  created_at timestamptz not null default now()
 );
 
--- Enable RLS for waste_listings
-ALTER TABLE waste_listings ENABLE ROW LEVEL SECURITY;
 
--- Policies for waste_listings
-CREATE POLICY "Anyone can view active waste listings" ON waste_listings
-  FOR SELECT USING (
-    status = 'available' AND deadline >= NOW()
-  );
+-- =========================================================
+-- 2. CONVERSATIONS
+-- =========================================================
 
-CREATE POLICY "Sellers can view their own listings regardless of status" ON waste_listings
-  FOR SELECT USING (auth.uid() = seller_id);
+create table if not exists conversations (
+  id uuid primary key default gen_random_uuid(),
 
-CREATE POLICY "Sellers can insert their own listings" ON waste_listings
-  FOR INSERT WITH CHECK (auth.uid() = seller_id);
+  listing_id uuid not null
+    references listings(id) on delete cascade,
 
-CREATE POLICY "Sellers can update their own listings" ON waste_listings
-  FOR UPDATE USING (auth.uid() = seller_id);
+  listing_title text not null,
+  listing_price text,
+  listing_image text,
 
-CREATE POLICY "Sellers can delete their own listings" ON waste_listings
-  FOR DELETE USING (auth.uid() = seller_id);
+  buyer_id uuid not null
+    references auth.users(id) on delete cascade,
 
--- Triggers for 'updated_at' on waste_listings
-DROP TRIGGER IF EXISTS set_updated_at_waste_listings ON waste_listings;
-CREATE TRIGGER set_updated_at_waste_listings
-  BEFORE UPDATE ON waste_listings
-  FOR EACH ROW
-  EXECUTE PROCEDURE handle_updated_at();
+  buyer_company text not null,
+  buyer_name text not null,
 
--- Set up storage for listing images
--- Note: You may need to create the bucket 'listing_images' manually in the Supabase Dashboard
--- if your pg_role doesn't have privileges, but here is the SQL to attempt it:
-INSERT INTO storage.buckets (id, name, public) VALUES ('listing_images', 'listing_images', true) ON CONFLICT (id) DO NOTHING;
+  seller_id uuid not null
+    references auth.users(id) on delete cascade,
 
-CREATE POLICY "Listing images are publicly accessible" ON storage.objects
-  FOR SELECT USING (bucket_id = 'listing_images');
+  seller_company text not null,
+  seller_name text not null,
 
-CREATE POLICY "Authenticated users can upload listing images" ON storage.objects
-  FOR INSERT WITH CHECK (bucket_id = 'listing_images' AND auth.role() = 'authenticated');
+  last_message text,
+  last_message_time timestamptz,
 
-CREATE POLICY "Users can update their own listing images" ON storage.objects
-  FOR UPDATE USING (bucket_id = 'listing_images' AND auth.uid() = owner);
+  created_at timestamptz not null default now(),
 
-CREATE POLICY "Users can delete their own listing images" ON storage.objects
-  FOR DELETE USING (bucket_id = 'listing_images' AND auth.uid() = owner);
+  -- Prevent duplicate conversations for
+  -- the same listing, buyer and seller
+  constraint unique_listing_buyer_seller
+    unique (listing_id, buyer_id, seller_id)
+);
+
+
+-- =========================================================
+-- 3. MESSAGES
+-- =========================================================
+
+create table if not exists messages (
+  id uuid primary key default gen_random_uuid(),
+
+  conversation_id uuid not null
+    references conversations(id) on delete cascade,
+
+  sender_id uuid not null
+    references auth.users(id) on delete cascade,
+
+  sender_name text not null,
+
+  sender_role text not null
+    check (sender_role in ('buyer', 'seller', 'system')),
+
+  text text not null,
+
+  created_at timestamptz not null default now()
+);
+
+
+-- =========================================================
+-- 4. DEAL OFFERS
+-- =========================================================
+
+create table if not exists deal_offers (
+  id uuid primary key default gen_random_uuid(),
+
+  conversation_id uuid not null
+    references conversations(id) on delete cascade,
+
+  message_id uuid
+    references messages(id) on delete set null,
+
+  offered_price_per_unit numeric not null
+    check (offered_price_per_unit >= 0),
+
+  offered_quantity numeric not null
+    check (offered_quantity > 0),
+
+  unit text not null,
+
+  currency text not null default '$',
+
+  incoterm text not null,
+
+  total_offer_amount numeric not null
+    check (total_offer_amount >= 0),
+
+  notes text,
+
+  status text not null default 'pending'
+    check (
+      status in (
+        'pending',
+        'accepted',
+        'countered',
+        'declined',
+        'withdrawn',
+        'expired'
+      )
+    ),
+
+  created_at timestamptz not null default now()
+);
+
+
+-- =========================================================
+-- 5. INDEXES
+-- =========================================================
+
+create index if not exists idx_listings_seller
+  on listings(seller_id);
+
+create index if not exists idx_conversations_buyer
+  on conversations(buyer_id);
+
+create index if not exists idx_conversations_seller
+  on conversations(seller_id);
+
+create index if not exists idx_conversations_listing
+  on conversations(listing_id);
+
+create index if not exists idx_conversations_last_message
+  on conversations(last_message_time desc);
+
+create index if not exists idx_messages_conversation
+  on messages(conversation_id);
+
+create index if not exists idx_messages_created_at
+  on messages(created_at);
+
+create index if not exists idx_deal_offers_conversation
+  on deal_offers(conversation_id);
+
+create index if not exists idx_deal_offers_message
+  on deal_offers(message_id);
+
+
+-- =========================================================
+-- 6. ENABLE ROW LEVEL SECURITY
+-- =========================================================
+
+alter table listings enable row level security;
+alter table conversations enable row level security;
+alter table messages enable row level security;
+alter table deal_offers enable row level security;
+
+
+-- =========================================================
+-- 7. LISTINGS POLICIES
+-- =========================================================
+
+drop policy if exists "Users can view listings" on listings;
+
+create policy "Users can view listings"
+on listings
+for select
+to authenticated
+using (true);
+
+
+drop policy if exists "Users can create their own listings" on listings;
+
+create policy "Users can create their own listings"
+on listings
+for insert
+to authenticated
+with check (seller_id = auth.uid());
+
+
+drop policy if exists "Users can update their own listings" on listings;
+
+create policy "Users can update their own listings"
+on listings
+for update
+to authenticated
+using (seller_id = auth.uid())
+with check (seller_id = auth.uid());
+
+
+drop policy if exists "Users can delete their own listings" on listings;
+
+create policy "Users can delete their own listings"
+on listings
+for delete
+to authenticated
+using (seller_id = auth.uid());
+
+
+-- =========================================================
+-- 8. CONVERSATION POLICIES
+-- =========================================================
+
+drop policy if exists "Users can view their conversations" on conversations;
+
+create policy "Users can view their conversations"
+on conversations
+for select
+to authenticated
+using (
+  buyer_id = auth.uid()
+  or seller_id = auth.uid()
+);
+
+
+drop policy if exists "Users can create conversations" on conversations;
+
+create policy "Users can create conversations"
+on conversations
+for insert
+to authenticated
+with check (
+  buyer_id = auth.uid()
+  or seller_id = auth.uid()
+);
+
+
+drop policy if exists "Users can update their conversations" on conversations;
+
+create policy "Users can update their conversations"
+on conversations
+for update
+to authenticated
+using (
+  buyer_id = auth.uid()
+  or seller_id = auth.uid()
+)
+with check (
+  buyer_id = auth.uid()
+  or seller_id = auth.uid()
+);
+
+
+-- =========================================================
+-- 9. MESSAGE POLICIES
+-- =========================================================
+
+drop policy if exists "Users can view conversation messages"
+on messages;
+
+create policy "Users can view conversation messages"
+on messages
+for select
+to authenticated
+using (
+  exists (
+    select 1
+    from conversations c
+    where c.id = messages.conversation_id
+      and (
+        c.buyer_id = auth.uid()
+        or c.seller_id = auth.uid()
+      )
+  )
+);
+
+
+drop policy if exists "Users can send messages"
+on messages;
+
+create policy "Users can send messages"
+on messages
+for insert
+to authenticated
+with check (
+  sender_id = auth.uid()
+  and exists (
+    select 1
+    from conversations c
+    where c.id = messages.conversation_id
+      and (
+        c.buyer_id = auth.uid()
+        or c.seller_id = auth.uid()
+      )
+  )
+);
+
+
+-- =========================================================
+-- 10. DEAL OFFER POLICIES
+-- =========================================================
+
+drop policy if exists "Users can view deal offers"
+on deal_offers;
+
+create policy "Users can view deal offers"
+on deal_offers
+for select
+to authenticated
+using (
+  exists (
+    select 1
+    from conversations c
+    where c.id = deal_offers.conversation_id
+      and (
+        c.buyer_id = auth.uid()
+        or c.seller_id = auth.uid()
+      )
+  )
+);
+
+
+drop policy if exists "Users can create deal offers"
+on deal_offers;
+
+create policy "Users can create deal offers"
+on deal_offers
+for insert
+to authenticated
+with check (
+  exists (
+    select 1
+    from conversations c
+    where c.id = deal_offers.conversation_id
+      and (
+        c.buyer_id = auth.uid()
+        or c.seller_id = auth.uid()
+      )
+  )
+);
+
+
+drop policy if exists "Users can update deal offers"
+on deal_offers;
+
+create policy "Users can update deal offers"
+on deal_offers
+for update
+to authenticated
+using (
+  exists (
+    select 1
+    from conversations c
+    where c.id = deal_offers.conversation_id
+      and (
+        c.buyer_id = auth.uid()
+        or c.seller_id = auth.uid()
+      )
+  )
+)
+with check (
+  exists (
+    select 1
+    from conversations c
+    where c.id = deal_offers.conversation_id
+      and (
+        c.buyer_id = auth.uid()
+        or c.seller_id = auth.uid()
+      )
+  )
+);
+
+
+-- =========================================================
+-- 11. SUPABASE REALTIME
+-- =========================================================
+
+alter publication supabase_realtime
+add table messages;
+
+alter publication supabase_realtime
+add table deal_offers;

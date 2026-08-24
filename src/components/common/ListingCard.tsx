@@ -1,5 +1,5 @@
 import React from "react";
-import { MapPin, Heart, ArrowUpRight, Package } from "lucide-react";
+import { MapPin, Heart, ArrowUpRight, Package, MessageSquare } from "lucide-react";
 import { WasteListing } from "../../types";
 
 interface ListingCardProps {
@@ -7,6 +7,7 @@ interface ListingCardProps {
   onSelect: (listing: WasteListing) => void;
   isFavorite: boolean;
   onToggleFavorite: (id: string, e: React.MouseEvent) => void;
+  onStartChat?: (listing: WasteListing, e: React.MouseEvent) => void;
   featured?: boolean;
 }
 
@@ -15,6 +16,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   onSelect,
   isFavorite,
   onToggleFavorite,
+  onStartChat,
 }) => {
   return (
     <div
@@ -89,17 +91,32 @@ export const ListingCard: React.FC<ListingCardProps> = ({
             </div>
           </div>
 
-          <button
-            id={`view-details-btn-${listing.id}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(listing);
-            }}
-            className="px-3.5 py-1.5 rounded-lg border border-neutral-300 hover:border-emerald-600 hover:bg-emerald-50 text-neutral-700 hover:text-emerald-800 text-xs font-semibold transition-all flex items-center gap-1"
-          >
-            <span>View Details</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            {onStartChat && (
+              <button
+                id={`chat-btn-${listing.id}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStartChat(listing, e);
+                }}
+                className="p-1.5 rounded-lg border border-neutral-300 hover:border-emerald-600 hover:bg-emerald-50 text-neutral-700 hover:text-emerald-800 text-xs font-semibold transition-all flex items-center gap-1"
+                title="Chat with Seller"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+              </button>
+            )}
+            <button
+              id={`view-details-btn-${listing.id}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(listing);
+              }}
+              className="px-3 py-1.5 rounded-lg border border-neutral-300 hover:border-emerald-600 hover:bg-emerald-50 text-neutral-700 hover:text-emerald-800 text-xs font-semibold transition-all flex items-center gap-1"
+            >
+              <span>View Details</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

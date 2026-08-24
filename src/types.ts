@@ -241,9 +241,10 @@ export interface ChatMessage {
   conversationId: string;
   senderId: string;
   senderName: string;
-  senderRole: 'buyer' | 'seller';
+  senderRole: 'buyer' | 'seller' | 'system';
   text: string;
   timestamp: string;
+  offerId?: string;
 }
 
 export interface DealOffer {
