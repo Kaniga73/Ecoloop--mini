@@ -9,7 +9,7 @@ import { MakeOfferModal } from "../components/common/MakeOfferModal";
 import { SellPage } from "./SellPage";
 import { PurchaseRecord } from "../components/common/DashboardView";
 import { currentUserProfiles } from "../data/mockListings";
-import { WasteListing, UserProfile, AuthView } from "../types";
+import { WasteListing, UserProfile, AuthView, PartyDetails } from "../types";
 import { useAuth } from "../hooks/useAuth";
 import { Search } from "lucide-react";
 import { fetchActiveListings, deleteWasteListing, updateWasteListing } from "../lib/listingsService";
@@ -48,6 +48,66 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       fetchAndSetListings();
     }
   }, [propListings]);
+
+  // Seller Action: Mark as Sold Handler
+  const handleMarkAsSold = (
+    listing: WasteListing,
+    buyer: PartyDetails,
+    quantity: number,
+    pricePerUnit: number
+  ) => {
+    const newPurchase: PurchaseRecord = {
+      id: `pur-${Date.now()}`,
+      listingId: listing.id,
+      productTitle: listing.title,
+      category: listing.category,
+      quantity,
+      unit: listing.unit || "kg",
+      amount: quantity * pricePerUnit,
+      unitPrice: pricePerUnit,
+      currency: listing.currency || "₹",
+      status: "Completed",
+      orderedDate: new Date().toISOString().split("T")[0],
+      image: listing.images[0],
+      seller: {
+        id: listing.seller.id,
+        name: listing.seller.name,
+        company: listing.seller.company,
+        email: listing.seller.contactEmail || `${listing.seller.name.toLowerCase().replace(/\s+/g, ".")}@example.com`,
+        phone: listing.seller.contactPhone || "+91 98401 00000",
+        location: listing.seller.location || `${listing.location.city}, ${listing.location.stateOrCountry}`,
+        avatar: listing.seller.avatar,
+      },
+      buyer: buyer,
+    };
+
+    setPurchases((prev) => [newPurchase, ...prev]);
+
+    setAllListings((prev) =>
+      prev.map((item) => {
+        if (item.id === listing.id) {
+          const originalQuantity = item.originalQuantity ?? item.totalQuantity ?? 0;
+          const currentSold = item.soldQuantity ?? 0;
+          const soldQuantity = currentSold + quantity;
+          const remainingQuantity = Math.max(0, originalQuantity - soldQuantity);
+          const status = remainingQuantity <= 0 ? "sold" : item.status;
+          const purchaseHistory = [...(item.purchaseHistory || []), newPurchase];
+          return {
+            ...item,
+            originalQuantity,
+            soldQuantity,
+            remainingQuantity,
+            totalQuantity: remainingQuantity,
+            status,
+            purchaseHistory,
+            buyer: buyer,
+          };
+        }
+        return item;
+      })
+    );
+  };
+
   const [activeTab, setActiveTab] = useState<"marketplace" | "dashboard" | "messages" | "list-waste">("marketplace");
   const [selectedCategory, setSelectedCategory] = useState<string>("All Categories");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -408,6 +468,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             onToggleFavorite={(id) => handleToggleFavorite(id)}
             onOpenMakeOffer={handleOpenMakeOffer}
             onExploreMarketplace={() => setActiveTab("marketplace")}
+            onMarkAsSold={handleMarkAsSold}
           />
         ) : (
           /* Marketplace View */

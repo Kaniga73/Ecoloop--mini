@@ -153,8 +153,15 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({
             {/* Quick Details Highlights */}
             <div className="pt-4 border-t border-neutral-100 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div className="p-3 bg-neutral-50 rounded-xl">
-                <span className="text-xs text-neutral-500 block mb-0.5">Total Quantity Available</span>
-                <span className="font-bold text-neutral-900 text-base">{listing.totalQuantity} {listing.unit}s</span>
+                <span className="text-xs text-neutral-500 block mb-0.5">Remaining Stock Available</span>
+                <span className="font-bold text-emerald-800 text-base">
+                  {(listing.remainingQuantity !== undefined ? listing.remainingQuantity : listing.totalQuantity)} {listing.unit}s
+                  {listing.originalQuantity && listing.originalQuantity !== (listing.remainingQuantity ?? listing.totalQuantity) && (
+                    <span className="text-xs text-neutral-400 font-normal ml-1">
+                      (Listed: {listing.originalQuantity} {listing.unit}s)
+                    </span>
+                  )}
+                </span>
               </div>
               <div className="p-3 bg-neutral-50 rounded-xl">
                 <span className="text-xs text-neutral-500 block mb-0.5">Minimum Purchase</span>
@@ -191,10 +198,12 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({
             {/* Total Lot Value */}
             <div className="p-4 bg-emerald-50/70 border border-emerald-100 rounded-xl flex items-center justify-between">
               <div>
-                <span className="text-xs font-medium text-emerald-800 block">Total Lot Value ({listing.totalQuantity} {listing.unit}s)</span>
+                <span className="text-xs font-medium text-emerald-800 block">
+                  Remaining Lot Value ({(listing.remainingQuantity !== undefined ? listing.remainingQuantity : listing.totalQuantity)} {listing.unit}s)
+                </span>
                 <span className="text-xl font-bold text-emerald-950">
                   {listing.currency}
-                  {listing.totalEstimatedValue.toLocaleString("en-IN")}
+                  {((listing.remainingQuantity !== undefined ? listing.remainingQuantity : listing.totalQuantity) * listing.pricePerUnit).toLocaleString("en-IN")}
                 </span>
               </div>
               <Package className="w-6 h-6 text-emerald-600" />
@@ -211,14 +220,20 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({
                 <span>Chat with Seller</span>
               </button>
 
-              <button
-                id="detail-page-make-offer-btn"
-                onClick={() => onOpenMakeOffer(listing)}
-                className="w-full py-3.5 px-4 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white rounded-xl font-bold text-sm shadow-xs transition-all flex items-center justify-center gap-2 focus:outline-none cursor-pointer"
-              >
-                <DollarSign className="w-4 h-4" />
-                <span>Make an Offer</span>
-              </button>
+              {(listing.status === "sold" || (listing.remainingQuantity !== undefined && listing.remainingQuantity <= 0)) ? (
+                <div className="w-full py-3.5 px-4 bg-rose-100 border border-rose-200 text-rose-800 rounded-xl font-bold text-sm text-center">
+                  COMPLETELY SOLD OUT
+                </div>
+              ) : (
+                <button
+                  id="detail-page-make-offer-btn"
+                  onClick={() => onOpenMakeOffer(listing)}
+                  className="w-full py-3.5 px-4 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white rounded-xl font-bold text-sm shadow-xs transition-all flex items-center justify-center gap-2 focus:outline-none cursor-pointer"
+                >
+                  <DollarSign className="w-4 h-4" />
+                  <span>Make an Offer</span>
+                </button>
+              )}
             </div>
           </div>
 

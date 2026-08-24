@@ -209,6 +209,7 @@ export interface WasteListing {
   seller: WasteSellerInfo;
   buyer?: PartyDetails;
   purchaseHistory?: PurchaseRecord[];
+  interestedBuyers?: PartyDetails[];
   listedDate: string;
   viewCount: number;
   status: 'available' | 'reserved' | 'sold' | 'expired';

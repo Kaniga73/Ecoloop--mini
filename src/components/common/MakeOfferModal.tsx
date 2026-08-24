@@ -18,7 +18,10 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({
 }) => {
   if (!isOpen || !listing) return null;
 
-  const [quantity, setQuantity] = useState<number>(listing.minPurchaseQuantity || 1);
+  const maxAvailableQty = listing.remainingQuantity !== undefined ? listing.remainingQuantity : listing.totalQuantity;
+  const minQty = Math.min(listing.minPurchaseQuantity || 1, maxAvailableQty);
+
+  const [quantity, setQuantity] = useState<number>(minQty);
   const [offerPrice, setOfferPrice] = useState<number>(listing.pricePerUnit);
   const [notes, setNotes] = useState("");
 
@@ -26,6 +29,10 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (quantity > maxAvailableQty) {
+      alert(`Cannot order more than available remaining quantity (${maxAvailableQty} ${listing.unit}s)`);
+      return;
+    }
     onSubmitOffer(listing, quantity, offerPrice);
     onClose();
   };
@@ -71,15 +78,15 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({
               </label>
               <input
                 type="number"
-                min={listing.minPurchaseQuantity || 1}
-                max={listing.totalQuantity}
+                min={minQty}
+                max={maxAvailableQty}
                 required
                 value={quantity}
                 onChange={(e) => setQuantity(Number(e.target.value))}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
-              <span className="text-[11px] text-neutral-400 mt-1 block">
-                Min: {listing.minPurchaseQuantity || 1} | Max: {listing.totalQuantity}
+              <span className="text-[11px] text-emerald-700 font-medium mt-1 block">
+                Available: <strong>{maxAvailableQty} {listing.unit}s</strong> (Min: {minQty})
               </span>
             </div>
 

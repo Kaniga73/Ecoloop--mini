@@ -1,6 +1,6 @@
 import React from "react";
 import { DashboardView, PurchaseRecord } from "../components/common/DashboardView";
-import { WasteListing, UserProfile, DealOffer } from "../types";
+import { WasteListing, UserProfile, DealOffer, PartyDetails } from "../types";
 
 interface DashboardPageProps {
   listings: WasteListing[];
@@ -16,6 +16,12 @@ interface DashboardPageProps {
   onToggleFavorite?: (id: string) => void;
   onOpenMakeOffer?: (listing: WasteListing) => void;
   onExploreMarketplace?: () => void;
+  onMarkAsSold?: (
+    listing: WasteListing,
+    buyer: PartyDetails,
+    quantity: number,
+    pricePerUnit: number
+  ) => void;
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = (props) => {

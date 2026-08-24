@@ -265,6 +265,7 @@ export async function fetchActiveListings(): Promise<WasteListing[]> {
         seller: sellerInfo,
         buyer: row.buyer,
         purchaseHistory: row.purchaseHistory || [],
+        interestedBuyers: row.interestedBuyers || [],
         listedDate: row.created_at || row.listedDate || 'Today',
         viewCount: row.viewCount || 0,
         status: (row.remainingQuantity !== undefined && row.remainingQuantity <= 0) ? 'sold' : (row.status || 'available'),

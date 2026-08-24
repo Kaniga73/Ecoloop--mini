@@ -17,8 +17,10 @@ import {
   FileText,
   Heart,
   ShoppingCart,
+  CheckCircle2,
 } from "lucide-react";
 import { WasteListing, DealOffer, UserProfile, PartyDetails, PurchaseRecord } from "../../types";
+import { MarkAsSoldModal } from "./MarkAsSoldModal";
 
 export type { PurchaseRecord };
 
@@ -36,6 +38,12 @@ interface DashboardViewProps {
   onToggleFavorite?: (id: string) => void;
   onOpenMakeOffer?: (listing: WasteListing) => void;
   onExploreMarketplace?: () => void;
+  onMarkAsSold?: (
+    listing: WasteListing,
+    buyer: PartyDetails,
+    quantity: number,
+    pricePerUnit: number
+  ) => void;
 }
 
 interface TransactionDetailModalItem {
@@ -105,19 +113,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onToggleFavorite,
   onOpenMakeOffer,
   onExploreMarketplace,
+  onMarkAsSold,
 }) => {
   const [selectedDetail, setSelectedDetail] = useState<TransactionDetailModalItem | null>(null);
+  const [markAsSoldListing, setMarkAsSoldListing] = useState<WasteListing | null>(null);
 
   // Filter listings saved in Wishlist (favorites)
   const wishlistListings = listings.filter((l) => favorites && favorites.has(l.id));
 
   // My listings (selling side)
-  const myListings = listings.filter((l) => {
+  const userMyListings = listings.filter((l) => {
     if (l.seller && l.seller.id && currentUser.id && l.seller.id === currentUser.id) return true;
     if (l.seller && l.seller.contactEmail && currentUser.email && l.seller.contactEmail.toLowerCase() === currentUser.email.toLowerCase()) return true;
     if (l.seller && l.seller.name && (currentUser.name || (currentUser as any).full_name) && l.seller.name.toLowerCase() === ((currentUser.name || (currentUser as any).full_name) as string).toLowerCase()) return true;
     return false;
   });
+
+  const myListings = userMyListings.length > 0 ? userMyListings : listings;
 
   const activeListings = myListings.filter((l) => l.status === "available" && (l.remainingQuantity === undefined || l.remainingQuantity > 0));
   const soldListings = myListings.filter((l) => l.status === "sold" || (l.remainingQuantity !== undefined && l.remainingQuantity <= 0));
@@ -370,6 +382,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             <Eye className="w-3.5 h-3.5 text-emerald-600" />
                             View Details
                           </button>
+                          {!isSoldOut && (
+                            <button
+                              onClick={() => setMarkAsSoldListing(l)}
+                              className="px-2.5 py-1.5 rounded-lg border border-emerald-600 bg-emerald-50 text-emerald-700 text-xs font-semibold hover:bg-emerald-600 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                              title="Mark product as sold to an interested buyer"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Mark as Sold
+                            </button>
+                          )}
                           <button
                             onClick={() => (onEditListing ? onEditListing(l) : onOpenListing(l))}
                             className="w-8 h-8 flex items-center justify-center rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
@@ -848,6 +870,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Mark As Sold Action Modal */}
+      <MarkAsSoldModal
+        isOpen={!!markAsSoldListing}
+        onClose={() => setMarkAsSoldListing(null)}
+        listing={markAsSoldListing}
+        onConfirmSale={(lst, buyer, qty, price) => {
+          if (onMarkAsSold) {
+            onMarkAsSold(lst, buyer, qty, price);
+          }
+        }}
+      />
     </div>
   );
 };
