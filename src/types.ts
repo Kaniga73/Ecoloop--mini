@@ -245,6 +245,7 @@ export interface ChatMessage {
   text: string;
   timestamp: string;
   offerId?: string;
+  offer?: DealOffer;
 }
 
 export interface DealOffer {
@@ -262,5 +263,7 @@ export interface DealOffer {
   currency: string;
   status: 'Pending' | 'Accepted' | 'Rejected' | 'Countered' | 'Completed';
   createdAt: string;
+  incoterm?: string;
+  notes?: string;
 }
 

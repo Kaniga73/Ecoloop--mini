@@ -49,6 +49,10 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
 }) => {
   const [inputText, setInputText] = useState("");
 
+  const [counteringOffer, setCounteringOffer] = useState<DealOffer | null>(null);
+  const [counterPrice, setCounterPrice] = useState<number>(0);
+  const [counterQty, setCounterQty] = useState<number>(0);
+
   const activeConversation =
     conversations.find((c) => c.id === activeConversationId) || conversations[0] || null;
 
@@ -68,6 +72,22 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
     if (window.confirm("Are you sure you want to delete this chat history? This action cannot be undone.")) {
       onDeleteConversation(activeConversation.id);
     }
+  };
+
+  const handleOpenCounter = (offer: DealOffer) => {
+    setCounteringOffer(offer);
+    setCounterPrice(offer.offeredPricePerUnit);
+    setCounterQty(offer.quantity);
+  };
+
+  const handleSendCounterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!counteringOffer || !activeConversation) return;
+    onSendMessage(
+      activeConversation.id,
+      `Counter Offer Transmitted: ${counterQty} ${counteringOffer.unit}s at ${counteringOffer.currency}${counterPrice}/${counteringOffer.unit} (Total Lot: ${counteringOffer.currency}${(counterQty * counterPrice).toLocaleString("en-IN")})`
+    );
+    setCounteringOffer(null);
   };
 
   return (
@@ -166,7 +186,7 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
         {/* Right Main Pane: Active Conversation Header & Messages */}
         {activeConversation ? (
           <div className="flex-1 flex flex-col min-w-0 bg-white">
-            {/* Header Bar */}
+            {/* Header Bar matching target reference image */}
             <div className="p-4 border-b border-neutral-200/90 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
               <div className="flex items-center gap-3 min-w-0">
                 <img
@@ -203,13 +223,10 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
                     title="Delete Chat History"
                   >
                     <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                    <span>Delete Chat</span>
+                    <span className="hidden sm:inline">Delete Chat</span>
                   </button>
                 )}
-                <div className="bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5 text-xs font-bold text-emerald-800 shadow-2xs">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>AI Deal Shield</span>
-                </div>
+                
               </div>
             </div>
 
@@ -219,9 +236,7 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
                 <div className="h-full flex flex-col items-center justify-center text-center p-8 text-neutral-400 space-y-2">
                   <MessageSquare className="w-10 h-10 opacity-30 text-emerald-600" />
                   <p className="text-sm font-bold text-neutral-700">Start the Conversation</p>
-                  <p className="text-xs text-neutral-500 max-w-sm">
-                    Inquire about material specs, request lab certificates, schedule a site inspection, or send a deal offer.
-                  </p>
+                  
                 </div>
               ) : (
                 activeMessages.map((msg) => {
@@ -240,7 +255,7 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
                   }
 
                   // Find matching offer if message is a deal offer
-                  const matchingOffer = activeOffers.find((o) => o.id === (msg as any).offerId);
+                  const matchingOffer = msg.offer || activeOffers.find((o) => o.id === (msg as any).offerId);
 
                   return (
                     <div
@@ -262,67 +277,83 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
                         {msg.text}
                       </div>
 
-                      {/* Embedded Deal Offer Card (if present) */}
+                      {/* Production Grade EcoLoop Deal Shield™ Offer Card matching user reference image */}
                       {matchingOffer && (
-                        <div className="w-full max-w-md mt-2 bg-white rounded-2xl border-2 border-emerald-500/40 p-4 shadow-md space-y-3 animate-in fade-in duration-200">
+                        <div className="w-full max-w-md mt-2 bg-white rounded-3xl border-2 border-emerald-500/70 p-5 shadow-lg space-y-4 animate-in fade-in duration-200">
+                          {/* Header */}
                           <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
-                            <span className="text-xs font-extrabold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
-                              <DollarSign className="w-4 h-4 text-emerald-600" />
-                              Official Deal Offer Transmitted
-                            </span>
+                            <div className="flex items-center gap-1.5 text-emerald-800 font-extrabold text-sm">
+                              <DollarSign className="w-4 h-4 text-emerald-600 shrink-0" />
+                              <span>Offer Made</span>
+                            </div>
                             <span
-                              className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                              className={`px-3 py-0.5 rounded-md text-[11px] font-extrabold tracking-wider ${
                                 matchingOffer.status === "Accepted"
-                                  ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                  ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
                                   : matchingOffer.status === "Rejected"
-                                  ? "bg-rose-100 text-rose-800 border-rose-300"
-                                  : "bg-amber-100 text-amber-800 border-amber-300"
+                                  ? "bg-rose-100 text-rose-800 border border-rose-300"
+                                  : matchingOffer.status === "Countered"
+                                  ? "bg-amber-100 text-amber-800 border border-amber-300"
+                                  : "bg-blue-100 text-blue-800 border border-blue-200"
                               }`}
                             >
-                              {matchingOffer.status.toUpperCase()}
+                              {matchingOffer.status === "Rejected" ? "DECLINED" : matchingOffer.status.toUpperCase()}
                             </span>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-3 text-xs">
-                            <div className="bg-neutral-50 p-2.5 rounded-xl border border-neutral-200">
-                              <span className="text-[10px] text-neutral-400 block font-medium">Offered Price</span>
-                              <strong className="text-neutral-900 font-extrabold text-sm">
+                          {/* Inner Card Grid */}
+                          <div className="bg-neutral-50/90 rounded-2xl p-4 border border-neutral-200/80 grid grid-cols-2 gap-y-3 gap-x-4 text-xs">
+                            <div>
+                              <span className="text-[11px] text-neutral-400 font-medium block">Offered Rate</span>
+                              <strong className="text-base font-black text-neutral-900">
                                 {matchingOffer.currency}{matchingOffer.offeredPricePerUnit.toLocaleString("en-IN")} / {matchingOffer.unit}
                               </strong>
                             </div>
-                            <div className="bg-neutral-50 p-2.5 rounded-xl border border-neutral-200">
-                              <span className="text-[10px] text-neutral-400 block font-medium">Quantity</span>
-                              <strong className="text-neutral-900 font-extrabold text-sm">
-                                {matchingOffer.offeredQuantity} {matchingOffer.unit}s
+                            <div>
+                              <span className="text-[11px] text-neutral-400 font-medium block">Quantity</span>
+                              <strong className="text-base font-black text-neutral-900">
+                                {matchingOffer.quantity} {matchingOffer.unit}s
                               </strong>
                             </div>
+                            <div>
+                              <span className="text-[11px] text-neutral-400 font-medium block">Total Amount</span>
+                              <strong className="text-sm font-extrabold text-emerald-700">
+                                {matchingOffer.currency}{matchingOffer.totalAmount.toLocaleString("en-IN")}
+                              </strong>
+                            </div>
+                          
                           </div>
 
-                          <div className="bg-emerald-50/80 p-3 rounded-xl border border-emerald-200 flex items-center justify-between text-xs">
-                            <span className="text-emerald-900 font-bold">Total Offer Value:</span>
-                            <span className="text-base font-black text-emerald-950">
-                              {matchingOffer.currency}{matchingOffer.totalOfferAmount.toLocaleString("en-IN")}
-                            </span>
-                          </div>
+                          {/* Notes / Quote block */}
+                          {matchingOffer.notes && matchingOffer.notes.trim() !== "" && (
+                            <div className="p-3.5 bg-neutral-50/80 rounded-xl border border-neutral-100 text-xs italic text-neutral-600 leading-relaxed font-normal">
+                              "{matchingOffer.notes}"
+                            </div>
+                          )}
 
-                          {/* Action Buttons / Status footer for receiving vs sending party */}
+                          {/* Action Buttons footer */}
                           {matchingOffer.status === "Pending" && (
                             <div className="pt-2 border-t border-neutral-100">
                               {!isMe ? (
                                 <div className="flex items-center gap-2">
                                   <button
                                     onClick={() => onAcceptOffer(matchingOffer)}
-                                    className="flex-1 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-xs font-extrabold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                                    className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-full text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
                                   >
                                     <CheckCircle2 className="w-4 h-4" />
                                     Accept Deal
                                   </button>
                                   <button
-                                    onClick={() => onRejectOffer(matchingOffer)}
-                                    className="flex-1 py-2.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                                    onClick={() => handleOpenCounter(matchingOffer)}
+                                    className="py-2.5 px-4 bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-300 rounded-full text-xs font-bold transition-all cursor-pointer"
                                   >
-                                    <XCircle className="w-4 h-4 text-rose-600" />
-                                    Decline Offer
+                                    Counter
+                                  </button>
+                                  <button
+                                    onClick={() => onRejectOffer(matchingOffer)}
+                                    className="py-2.5 px-3 text-neutral-500 hover:text-rose-600 text-xs font-medium transition-colors cursor-pointer"
+                                  >
+                                    Decline
                                   </button>
                                 </div>
                               ) : (
@@ -337,7 +368,7 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
                           {matchingOffer.status === "Accepted" && (
                             <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 text-center text-xs font-bold text-emerald-800 flex items-center justify-center gap-1.5">
                               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                              <span>Deal Accepted & Inventory Updated</span>
+                              <span>Deal Accepted & Inventory Reserved</span>
                             </div>
                           )}
 
@@ -392,6 +423,80 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({
           </div>
         )}
       </div>
+
+      {/* Counter Offer Modal */}
+      {counteringOffer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-neutral-200 animate-in fade-in duration-200">
+            <div className="px-6 py-5 border-b border-neutral-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-extrabold text-neutral-900">Submit Counter Offer</h3>
+                <p className="text-xs text-neutral-500 mt-0.5">{counteringOffer.listingTitle}</p>
+              </div>
+              <button
+                onClick={() => setCounteringOffer(null)}
+                className="w-8 h-8 rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSendCounterSubmit} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                    Counter Rate ({counteringOffer.currency} / {counteringOffer.unit})
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={counterPrice}
+                    onChange={(e) => setCounterPrice(Number(e.target.value))}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                    Quantity ({counteringOffer.unit}s)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={counterQty}
+                    onChange={(e) => setCounterQty(Number(e.target.value))}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-emerald-50 rounded-xl border border-emerald-100 flex items-center justify-between text-xs">
+                <span className="font-bold text-emerald-900">Total Counter Value:</span>
+                <strong className="text-base font-extrabold text-emerald-950">
+                  {counteringOffer.currency}{(counterPrice * counterQty).toLocaleString("en-IN")}
+                </strong>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setCounteringOffer(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-neutral-600 hover:bg-neutral-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                >
+                  Transmit Counter Offer
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

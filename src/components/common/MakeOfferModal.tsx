@@ -5,7 +5,12 @@ import { WasteListing, UserProfile } from "../../types";
 interface MakeOfferModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmitOffer: (listing: WasteListing, quantity: number, pricePerUnit: number) => void;
+  onSubmitOffer: (
+    listing: WasteListing,
+    quantity: number,
+    pricePerUnit: number,
+    notes?: string
+  ) => void;
   listing: WasteListing | null;
   currentUser: UserProfile;
 }
@@ -33,7 +38,7 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({
       alert(`Cannot order more than available remaining quantity (${maxAvailableQty} ${listing.unit}s)`);
       return;
     }
-    onSubmitOffer(listing, quantity, offerPrice);
+    onSubmitOffer(listing, quantity, offerPrice, notes);
     onClose();
   };
 
@@ -92,7 +97,7 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                Offer Price / {listing.unit} (₹) *
+                Offer Price / {listing.unit} ({listing.currency || "₹"}) *
               </label>
               <input
                 type="number"
@@ -107,6 +112,8 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({
               </span>
             </div>
           </div>
+
+
 
           {/* Total calculation card */}
           <div className="p-4 bg-emerald-50/80 rounded-2xl border border-emerald-100 flex items-center justify-between">
@@ -128,7 +135,7 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add pickup details, transport preference, or payment terms..."
+              placeholder="Add pickup details, transport preference, or loading schedule..."
               className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
             />
           </div>

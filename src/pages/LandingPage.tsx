@@ -442,7 +442,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     setIsMakeOfferModalOpen(true);
   };
 
-  const handleSubmitOffer = (listing: WasteListing, quantity: number, pricePerUnit: number) => {
+  const handleSubmitOffer = (
+    listing: WasteListing,
+    quantity: number,
+    pricePerUnit: number,
+    notes?: string,
+    incoterm?: string
+  ) => {
     // 1. Ensure conversation thread exists for this listing
     let existingConv = conversations.find((c) => c.listingId === listing.id);
     let convId = existingConv?.id;
@@ -488,6 +494,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       currency: listing.currency || "₹",
       status: "Pending",
       createdAt: new Date().toISOString(),
+      incoterm: incoterm || "EXW (Ex Works)",
+      notes: notes || "",
     };
 
     // Store in dealOffersMap
@@ -496,7 +504,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       [convId]: [...(prev[convId] || []), newOffer],
     }));
 
-    // Transmit offer as embedded message in chat thread
+    // Transmit offer as embedded message in chat thread matching exact production design
     const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     const offerMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
@@ -504,10 +512,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       senderId: activeUser.id,
       senderName: activeUser.name,
       senderRole: (activeUser.role || "buyer") as any,
-      text: `Official Offer Transmitted: ${quantity} ${listing.unit || "Ton"}s at ${listing.currency || "₹"}${pricePerUnit.toLocaleString("en-IN")}/${listing.unit || "Ton"} (Total Lot: ${listing.currency || "₹"}${(quantity * pricePerUnit).toLocaleString("en-IN")})`,
+      text: "I have officially submitted a formal offer via EcoLoop Deal Shield below:",
       timestamp: timeStr,
       offerId: offerId,
-    } as any;
+      offer: newOffer,
+    };
 
     setMessagesMap((prev) => ({
       ...prev,
@@ -519,7 +528,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         c.id === convId
           ? {
               ...c,
-              lastMessage: `Offer submitted: ${quantity} ${listing.unit}s at ${listing.currency}${pricePerUnit}/${listing.unit}`,
+              lastMessage: `Formal offer submitted: ${quantity} ${listing.unit || "Ton"}s at ${listing.currency || "₹"}${pricePerUnit}/${listing.unit || "Ton"}`,
               lastMessageTime: timeStr,
             }
           : c

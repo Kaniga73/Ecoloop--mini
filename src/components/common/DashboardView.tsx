@@ -13,7 +13,6 @@ import {
   Mail,
   Phone,
   MapPin,
-  ShieldCheck,
   FileText,
   Heart,
   ShoppingCart,
@@ -665,90 +664,50 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <ShoppingCart className="w-3.5 h-3.5 text-emerald-700" />
                   Quantity Summary
                 </h5>
-                <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-neutral-800 bg-white/90 p-3 rounded-xl border border-emerald-100 shadow-2xs">
-                  <div className="flex items-center gap-1">
-                    <span className="text-neutral-500">Listed:</span>
-                    <strong className="text-neutral-900 font-bold">{selectedDetail.originalQuantity} {selectedDetail.unit}</strong>
+                {selectedDetail.type === "listing" ? (
+                  <>
+                    <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-neutral-800 bg-white/90 p-3 rounded-xl border border-emerald-100 shadow-2xs">
+                      <div className="flex items-center gap-1">
+                        <span className="text-neutral-500">Listed:</span>
+                        <strong className="text-neutral-900 font-bold">{selectedDetail.originalQuantity} {selectedDetail.unit}</strong>
+                      </div>
+                      <span className="text-neutral-300">•</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-neutral-500">Sold:</span>
+                        <strong className="text-amber-700 font-bold">{selectedDetail.soldQuantity} {selectedDetail.unit}</strong>
+                      </div>
+                      <span className="text-neutral-300">•</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-neutral-500">Remaining:</span>
+                        <strong className={selectedDetail.remainingQuantity === 0 ? "text-rose-600 font-extrabold" : "text-emerald-700 font-extrabold"}>
+                          {selectedDetail.remainingQuantity} {selectedDetail.unit}
+                        </strong>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-neutral-600 font-medium px-1">
+                      Listed: {selectedDetail.originalQuantity} {selectedDetail.unit}, Sold: {selectedDetail.soldQuantity} {selectedDetail.unit}, Remaining: {selectedDetail.remainingQuantity} {selectedDetail.unit}
+                    </p>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2 text-xs font-medium text-neutral-800 bg-white/90 p-3 rounded-xl border border-emerald-100 shadow-2xs">
+                    <span className="text-neutral-500">Purchased Quantity:</span>
+                    <strong className="text-emerald-700 font-extrabold">{selectedDetail.originalQuantity} {selectedDetail.unit}</strong>
                   </div>
-                  <span className="text-neutral-300">•</span>
-                  <div className="flex items-center gap-1">
-                    <span className="text-neutral-500">Sold:</span>
-                    <strong className="text-amber-700 font-bold">{selectedDetail.soldQuantity} {selectedDetail.unit}</strong>
-                  </div>
-                  <span className="text-neutral-300">•</span>
-                  <div className="flex items-center gap-1">
-                    <span className="text-neutral-500">Remaining:</span>
-                    <strong className={selectedDetail.remainingQuantity === 0 ? "text-rose-600 font-extrabold" : "text-emerald-700 font-extrabold"}>
-                      {selectedDetail.remainingQuantity} {selectedDetail.unit}
-                    </strong>
-                  </div>
-                </div>
-                <p className="text-[11px] text-neutral-600 font-medium px-1">
-                  Listed: {selectedDetail.originalQuantity} {selectedDetail.unit}, Sold: {selectedDetail.soldQuantity} {selectedDetail.unit}, Remaining: {selectedDetail.remainingQuantity} {selectedDetail.unit}
-                </p>
+                )}
               </div>
 
               {/* Seller & Buyer Party Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Seller Info Card */}
-                <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
-                    <h5 className="text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5 text-emerald-600" />
-                      {selectedDetail.status === 'sold' || selectedDetail.status === 'Completed' || selectedDetail.type === 'purchase' ? 'Sold By (Seller)' : 'Listed By (Seller)'}
-                    </h5>
-                    <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                      Vendor
-                    </span>
-                  </div>
-
-                  <div className="space-y-2 text-xs">
-                    <div className="flex items-start gap-2">
-                      <Building2 className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="text-neutral-400 block text-[10px]">Company / Facility</span>
-                        <span className="font-bold text-neutral-900">{selectedDetail.seller.company}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-2">
-                      <User className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="text-neutral-400 block text-[10px]">Contact Person</span>
-                        <span className="font-semibold text-neutral-800">{selectedDetail.seller.name}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-2">
-                      <Mail className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="text-neutral-400 block text-[10px]">Email Address</span>
-                        <a href={`mailto:${selectedDetail.seller.email}`} className="text-emerald-700 hover:underline font-medium">
-                          {selectedDetail.seller.email || "N/A"}
-                        </a>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-2">
-                      <MapPin className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="text-neutral-400 block text-[10px]">Facility Location</span>
-                        <span className="text-neutral-700">{selectedDetail.seller.location || "N/A"}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Buyer Info Card */}
-                {selectedDetail.buyer ? (
+              <div className="grid grid-cols-1 gap-4">
+                {/* Seller Info Card (Shown for My Purchases) */}
+                {selectedDetail.type === "purchase" && (
                   <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs space-y-3">
                     <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
-                      <h5 className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-blue-600" />
-                        Purchased By (Buyer)
+                      <h5 className="text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-emerald-600" />
+                        Seller Details
                       </h5>
-                      <span className="text-[10px] text-blue-700 font-semibold bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-                        Procurer
+                      <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                        Vendor
                       </span>
                     </div>
 
@@ -756,16 +715,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <div className="flex items-start gap-2">
                         <Building2 className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
                         <div>
-                          <span className="text-neutral-400 block text-[10px]">Company / Purchasing Org</span>
-                          <span className="font-bold text-neutral-900">{selectedDetail.buyer.company}</span>
+                          <span className="text-neutral-400 block text-[10px]">Company / Facility</span>
+                          <span className="font-bold text-neutral-900">{selectedDetail.seller.company}</span>
                         </div>
                       </div>
 
                       <div className="flex items-start gap-2">
                         <User className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
                         <div>
-                          <span className="text-neutral-400 block text-[10px]">Purchaser Name</span>
-                          <span className="font-semibold text-neutral-800">{selectedDetail.buyer.name}</span>
+                          <span className="text-neutral-400 block text-[10px]">Contact Person</span>
+                          <span className="font-semibold text-neutral-800">{selectedDetail.seller.name}</span>
                         </div>
                       </div>
 
@@ -773,8 +732,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <Mail className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
                         <div>
                           <span className="text-neutral-400 block text-[10px]">Email Address</span>
-                          <a href={`mailto:${selectedDetail.buyer.email}`} className="text-emerald-700 hover:underline font-medium">
-                            {selectedDetail.buyer.email || "N/A"}
+                          <a href={`mailto:${selectedDetail.seller.email}`} className="text-emerald-700 hover:underline font-medium">
+                            {selectedDetail.seller.email || "N/A"}
                           </a>
                         </div>
                       </div>
@@ -782,80 +741,128 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <div className="flex items-start gap-2">
                         <MapPin className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
                         <div>
-                          <span className="text-neutral-400 block text-[10px]">Delivery Address</span>
-                          <span className="text-neutral-700">{selectedDetail.buyer.location || "N/A"}</span>
+                          <span className="text-neutral-400 block text-[10px]">Facility Location</span>
+                          <span className="text-neutral-700">{selectedDetail.seller.location || "N/A"}</span>
                         </div>
                       </div>
                     </div>
                   </div>
-                ) : (
-                  <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs flex flex-col items-center justify-center text-neutral-400 space-y-2 min-h-[150px]">
-                    <User className="w-8 h-8 opacity-20" />
-                    <span className="text-xs font-medium">No primary buyer assigned yet</span>
-                  </div>
                 )}
-              </div>
 
-              {/* Purchase History Section */}
-              <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
-                  <h5 className="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-blue-600" />
-                    Purchase History
-                  </h5>
-                  <span className="text-[10px] text-blue-700 font-semibold bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-                    {selectedDetail.purchaseHistory?.length || 0} {selectedDetail.purchaseHistory?.length === 1 ? "Buyer" : "Buyers"}
-                  </span>
-                </div>
+                {/* Buyer Info Card (Shown for My Products) */}
+                {selectedDetail.type === "listing" && (
+                  selectedDetail.buyer ? (
+                    <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
+                        <h5 className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 text-blue-600" />
+                          Purchased By (Buyer)
+                        </h5>
+                        <span className="text-[10px] text-blue-700 font-semibold bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                          Procurer
+                        </span>
+                      </div>
 
-                {selectedDetail.purchaseHistory && selectedDetail.purchaseHistory.length > 0 ? (
-                  <div className="space-y-3 divide-y divide-neutral-100">
-                    {selectedDetail.purchaseHistory.map((p, idx) => {
-                      const buyerName = p.buyer?.name || (p as any).buyerName || `Buyer ${String.fromCharCode(65 + idx)}`;
-                      return (
-                        <div key={p.id || idx} className={`${idx > 0 ? "pt-3" : ""} flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs`}>
-                          <div className="space-y-1">
-                            <div className="text-neutral-800 font-medium leading-snug">
-                              <span className="font-semibold text-neutral-900">{buyerName}</span>
-                              {" – "}
-                              <span className="font-bold text-emerald-700">{p.quantity} {p.unit || selectedDetail.unit}</span>
-                              {" – "}
-                              <span className="font-bold text-neutral-900">{p.currency || '₹'}{p.amount.toLocaleString("en-IN")}</span>
-                              {" – "}
-                              <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border ${statusPillClasses[p.status] || "bg-emerald-50 text-emerald-700 border-emerald-200"}`}>
-                                {p.status}
-                              </span>
-                            </div>
-                            {p.buyer?.company && (
-                              <span className="text-[11px] text-neutral-400 block">{p.buyer.company}</span>
-                            )}
-                          </div>
-
-                          <div className="text-left sm:text-right shrink-0">
-                            <span className="text-[11px] text-neutral-400 block">{p.orderedDate}</span>
+                      <div className="space-y-2 text-xs">
+                        <div className="flex items-start gap-2">
+                          <Building2 className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="text-neutral-400 block text-[10px]">Company / Purchasing Org</span>
+                            <span className="font-bold text-neutral-900">{selectedDetail.buyer.company}</span>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="py-4 flex flex-col items-center justify-center text-neutral-400 space-y-1.5 text-center">
-                    <User className="w-6 h-6 opacity-30" />
-                    <p className="text-xs font-medium text-neutral-600">No purchase history yet</p>
-                    <p className="text-[11px] text-neutral-400 max-w-sm">
-                      When buyers purchase quantities from this listing, each transaction will be recorded here separately.
-                    </p>
-                  </div>
+
+                        <div className="flex items-start gap-2">
+                          <User className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="text-neutral-400 block text-[10px]">Purchaser Name</span>
+                            <span className="font-semibold text-neutral-800">{selectedDetail.buyer.name}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-2">
+                          <Mail className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="text-neutral-400 block text-[10px]">Email Address</span>
+                            <a href={`mailto:${selectedDetail.buyer.email}`} className="text-emerald-700 hover:underline font-medium">
+                              {selectedDetail.buyer.email || "N/A"}
+                            </a>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-2">
+                          <MapPin className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="text-neutral-400 block text-[10px]">Delivery Address</span>
+                            <span className="text-neutral-700">{selectedDetail.buyer.location || "N/A"}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs flex flex-col items-center justify-center text-neutral-400 space-y-2 min-h-[150px]">
+                      <User className="w-8 h-8 opacity-20" />
+                      <span className="text-xs font-medium">No primary buyer assigned yet</span>
+                    </div>
+                  )
                 )}
               </div>
-              {/* Compliance & Verification Badge */}
-              <div className="bg-emerald-50/60 rounded-xl p-3.5 border border-emerald-200/60 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 text-emerald-900 font-medium">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Verified EcoLoop Circular Economy Transaction</span>
+
+              {/* Purchase History Section (Only for My Products listings) */}
+              {selectedDetail.type === "listing" && (
+                <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
+                    <h5 className="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-blue-600" />
+                      Purchase History
+                    </h5>
+                    <span className="text-[10px] text-blue-700 font-semibold bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                      {selectedDetail.purchaseHistory?.length || 0} {selectedDetail.purchaseHistory?.length === 1 ? "Buyer" : "Buyers"}
+                    </span>
+                  </div>
+
+                  {selectedDetail.purchaseHistory && selectedDetail.purchaseHistory.length > 0 ? (
+                    <div className="space-y-3 divide-y divide-neutral-100">
+                      {selectedDetail.purchaseHistory.map((p, idx) => {
+                        const buyerName = p.buyer?.name || (p as any).buyerName || `Buyer ${String.fromCharCode(65 + idx)}`;
+                        return (
+                          <div key={p.id || idx} className={`${idx > 0 ? "pt-3" : ""} flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs`}>
+                            <div className="space-y-1">
+                              <div className="text-neutral-800 font-medium leading-snug">
+                                <span className="font-semibold text-neutral-900">{buyerName}</span>
+                                {" – "}
+                                <span className="font-bold text-emerald-700">{p.quantity} {p.unit || selectedDetail.unit}</span>
+                                {" – "}
+                                <span className="font-bold text-neutral-900">{p.currency || '₹'}{p.amount.toLocaleString("en-IN")}</span>
+                                {" – "}
+                                <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border ${statusPillClasses[p.status] || "bg-emerald-50 text-emerald-700 border-emerald-200"}`}>
+                                  {p.status}
+                                </span>
+                              </div>
+                              {p.buyer?.company && (
+                                <span className="text-[11px] text-neutral-400 block">{p.buyer.company}</span>
+                              )}
+                            </div>
+
+                            <div className="text-left sm:text-right shrink-0">
+                              <span className="text-[11px] text-neutral-400 block">{p.orderedDate}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="py-4 flex flex-col items-center justify-center text-neutral-400 space-y-1.5 text-center">
+                      <User className="w-6 h-6 opacity-30" />
+                      <p className="text-xs font-medium text-neutral-600">No purchase history yet</p>
+                      <p className="text-[11px] text-neutral-400 max-w-sm">
+                        When buyers purchase quantities from this listing, each transaction will be recorded here separately.
+                      </p>
+                    </div>
+                  )}
                 </div>
-                <span className="text-[11px] text-emerald-700 font-semibold">TN PCB Compliant</span>
-              </div>
+              )}
+
             </div>
 
             {/* Modal Footer */}
