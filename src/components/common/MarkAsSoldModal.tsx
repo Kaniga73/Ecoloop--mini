@@ -296,27 +296,11 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({
           </div>
 
           {/* Calculation & Status Preview */}
-          <div className="p-4 bg-emerald-50/80 rounded-2xl border border-emerald-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="p-4 bg-emerald-50/80 rounded-2xl border border-emerald-200 flex items-center justify-between gap-3">
             <div>
               <span className="text-xs text-emerald-900 font-semibold block">Total Transaction Value</span>
               <span className="text-xl font-extrabold text-emerald-950">
                 {listing.currency}{totalAmount.toLocaleString("en-IN")}
-              </span>
-            </div>
-            <div className="text-left sm:text-right">
-              <span className="text-xs text-neutral-600 block font-medium">
-                Post-sale Listing Status:
-              </span>
-              <span
-                className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold mt-0.5 ${
-                  currentRemainingQty - soldQuantity <= 0
-                    ? "bg-rose-100 text-rose-800 border border-rose-200"
-                    : "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                }`}
-              >
-                {currentRemainingQty - soldQuantity <= 0
-                  ? "Sold Out (Removed from Marketplace)"
-                  : `Available (${currentRemainingQty - soldQuantity} ${listing.unit} remaining)`}
               </span>
             </div>
           </div>

@@ -9,6 +9,7 @@ import {
   Eye,
   X,
   User,
+  Users,
   Building2,
   Mail,
   Phone,
@@ -116,6 +117,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   const [selectedDetail, setSelectedDetail] = useState<TransactionDetailModalItem | null>(null);
   const [markAsSoldListing, setMarkAsSoldListing] = useState<WasteListing | null>(null);
+  const [showBuyersModal, setShowBuyersModal] = useState<boolean>(false);
 
   // Filter listings saved in Wishlist (favorites)
   const wishlistListings = listings.filter((l) => favorites && favorites.has(l.id));
@@ -749,117 +751,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </div>
                 )}
 
-                {/* Buyer Info Card (Shown for My Products) */}
-                {selectedDetail.type === "listing" && (
-                  selectedDetail.buyer ? (
-                    <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs space-y-3">
-                      <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
-                        <h5 className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1.5">
-                          <User className="w-3.5 h-3.5 text-blue-600" />
-                          Purchased By (Buyer)
-                        </h5>
-                        <span className="text-[10px] text-blue-700 font-semibold bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-                          Procurer
-                        </span>
-                      </div>
 
-                      <div className="space-y-2 text-xs">
-                        <div className="flex items-start gap-2">
-                          <Building2 className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="text-neutral-400 block text-[10px]">Company / Purchasing Org</span>
-                            <span className="font-bold text-neutral-900">{selectedDetail.buyer.company}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-2">
-                          <User className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="text-neutral-400 block text-[10px]">Purchaser Name</span>
-                            <span className="font-semibold text-neutral-800">{selectedDetail.buyer.name}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-2">
-                          <Mail className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="text-neutral-400 block text-[10px]">Email Address</span>
-                            <a href={`mailto:${selectedDetail.buyer.email}`} className="text-emerald-700 hover:underline font-medium">
-                              {selectedDetail.buyer.email || "N/A"}
-                            </a>
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-2">
-                          <MapPin className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="text-neutral-400 block text-[10px]">Delivery Address</span>
-                            <span className="text-neutral-700">{selectedDetail.buyer.location || "N/A"}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs flex flex-col items-center justify-center text-neutral-400 space-y-2 min-h-[150px]">
-                      <User className="w-8 h-8 opacity-20" />
-                      <span className="text-xs font-medium">No primary buyer assigned yet</span>
-                    </div>
-                  )
-                )}
               </div>
 
-              {/* Purchase History Section (Only for My Products listings) */}
+              {/* Buyers List Action Card (Replaces inline Purchase History) */}
               {selectedDetail.type === "listing" && (
-                <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
-                    <h5 className="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 text-blue-600" />
-                      Purchase History
-                    </h5>
-                    <span className="text-[10px] text-blue-700 font-semibold bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-                      {selectedDetail.purchaseHistory?.length || 0} {selectedDetail.purchaseHistory?.length === 1 ? "Buyer" : "Buyers"}
-                    </span>
-                  </div>
-
-                  {selectedDetail.purchaseHistory && selectedDetail.purchaseHistory.length > 0 ? (
-                    <div className="space-y-3 divide-y divide-neutral-100">
-                      {selectedDetail.purchaseHistory.map((p, idx) => {
-                        const buyerName = p.buyer?.name || (p as any).buyerName || `Buyer ${String.fromCharCode(65 + idx)}`;
-                        return (
-                          <div key={p.id || idx} className={`${idx > 0 ? "pt-3" : ""} flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs`}>
-                            <div className="space-y-1">
-                              <div className="text-neutral-800 font-medium leading-snug">
-                                <span className="font-semibold text-neutral-900">{buyerName}</span>
-                                {" – "}
-                                <span className="font-bold text-emerald-700">{p.quantity} {p.unit || selectedDetail.unit}</span>
-                                {" – "}
-                                <span className="font-bold text-neutral-900">{p.currency || '₹'}{p.amount.toLocaleString("en-IN")}</span>
-                                {" – "}
-                                <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border ${statusPillClasses[p.status] || "bg-emerald-50 text-emerald-700 border-emerald-200"}`}>
-                                  {p.status}
-                                </span>
-                              </div>
-                              {p.buyer?.company && (
-                                <span className="text-[11px] text-neutral-400 block">{p.buyer.company}</span>
-                              )}
-                            </div>
-
-                            <div className="text-left sm:text-right shrink-0">
-                              <span className="text-[11px] text-neutral-400 block">{p.orderedDate}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
+                <div className="bg-white rounded-2xl border border-neutral-200 p-4 shadow-xs flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                      <Users className="w-5 h-5" />
                     </div>
-                  ) : (
-                    <div className="py-4 flex flex-col items-center justify-center text-neutral-400 space-y-1.5 text-center">
-                      <User className="w-6 h-6 opacity-30" />
-                      <p className="text-xs font-medium text-neutral-600">No purchase history yet</p>
-                      <p className="text-[11px] text-neutral-400 max-w-sm">
-                        When buyers purchase quantities from this listing, each transaction will be recorded here separately.
+                    <div>
+                      <h5 className="text-xs font-bold text-neutral-900 uppercase tracking-wider">
+                        Buyers List
+                      </h5>
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        {selectedDetail.purchaseHistory?.length || 0} {selectedDetail.purchaseHistory?.length === 1 ? "buyer record" : "buyer records"} available
                       </p>
                     </div>
-                  )}
+                  </div>
+                  <button
+                    onClick={() => setShowBuyersModal(true)}
+                    className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    Buyers
+                  </button>
                 </div>
               )}
 
@@ -869,6 +786,112 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="px-6 py-4 bg-neutral-50 border-t border-neutral-200/80 flex items-center justify-end gap-3">
               <button
                 onClick={() => setSelectedDetail(null)}
+                className="px-4 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Buyers List Pop-Up Modal */}
+      {showBuyersModal && selectedDetail && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-xl w-full border border-neutral-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-neutral-200/80 flex items-center justify-between bg-neutral-50/70">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-neutral-900">Buyers List</h4>
+                  <p className="text-xs text-neutral-500">{selectedDetail.productTitle}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowBuyersModal(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-200 text-neutral-500 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 max-h-[65vh] overflow-y-auto space-y-4">
+              {selectedDetail.purchaseHistory && selectedDetail.purchaseHistory.length > 0 ? (
+                selectedDetail.purchaseHistory.map((p, idx) => {
+                  const buyer = p.buyer || {};
+                  const buyerName = buyer.name || (p as any).buyerName || `Buyer ${String.fromCharCode(65 + idx)}`;
+                  const companyName = buyer.company || "N/A";
+                  const email = buyer.email || "N/A";
+                  const location = buyer.location || "N/A";
+
+                  return (
+                    <div key={p.id || idx} className="bg-neutral-50 rounded-2xl border border-neutral-200 p-4 space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-neutral-200/60">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-neutral-900">{buyerName}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${statusPillClasses[p.status] || "bg-emerald-50 text-emerald-700 border-emerald-200"}`}>
+                            {p.status}
+                          </span>
+                        </div>
+                        <span className="text-xs font-bold text-emerald-700">
+                          {p.quantity} {p.unit || selectedDetail.unit} — {p.currency || '₹'}{p.amount.toLocaleString("en-IN")}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-start gap-2">
+                          <Building2 className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="text-neutral-400 block text-[10px]">Company</span>
+                            <span className="font-semibold text-neutral-800">{companyName}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-2">
+                          <Mail className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="text-neutral-400 block text-[10px]">Email</span>
+                            <a href={`mailto:${email}`} className="text-emerald-700 hover:underline font-medium">
+                              {email}
+                            </a>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-2 sm:col-span-2">
+                          <MapPin className="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="text-neutral-400 block text-[10px]">Address / Location</span>
+                            <span className="text-neutral-700">{location}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-neutral-200/60 flex items-center justify-between text-[11px] text-neutral-400">
+                        <span>Purchased Date: {p.orderedDate}</span>
+                        <span>Unit Price: {p.currency || '₹'}{p.unitPrice?.toLocaleString("en-IN") || 'N/A'} / {p.unit || selectedDetail.unit}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="py-8 flex flex-col items-center justify-center text-neutral-400 space-y-2 text-center">
+                  <Users className="w-10 h-10 opacity-30 text-blue-600" />
+                  <p className="text-sm font-semibold text-neutral-700">No Buyers Recorded Yet</p>
+                  <p className="text-xs text-neutral-400 max-w-sm">
+                    When buyers purchase this listing or when you mark transactions as sold, buyer details will be listed here.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-neutral-50 border-t border-neutral-200/80 flex justify-end">
+              <button
+                onClick={() => setShowBuyersModal(false)}
                 className="px-4 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
               >
                 Close

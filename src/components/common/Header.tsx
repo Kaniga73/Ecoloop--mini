@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Bell, Plus, Recycle, ShieldCheck, UserCheck, ArrowRightLeft, LogOut } from "lucide-react";
+import { Search, Bell, Plus, Recycle, ShieldCheck, UserCheck, LogOut, User } from "lucide-react";
 import { UserProfile } from "../../types";
 
 interface HeaderProps {
@@ -124,25 +124,24 @@ export const Header: React.FC<HeaderProps> = ({
                 id="role-switch-btn"
                 onClick={onSwitchUser}
                 className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-neutral-100 transition-colors text-left group focus:outline-none"
-                title="Click to toggle between Buyer and Seller mode"
+                
               >
-                <img
-                  src={currentUser.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"}
-                  alt={currentUser.name || currentUser.full_name || "User"}
-                  className="w-8 h-8 rounded-full object-cover ring-1 ring-neutral-200"
-                />
+                <div className="w-8 h-8 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center text-neutral-500 ring-1 ring-neutral-200 shrink-0">
+                  <User className="w-4 h-4" />
+                </div>
                 <div className="hidden lg:block">
                   <div className="flex items-center gap-1">
                     <span className="text-xs font-semibold text-neutral-800 leading-none">
                       {currentUser.name || currentUser.full_name || "User"}
                     </span>
-                    <ArrowRightLeft className="w-3 h-3 text-neutral-400 group-hover:text-emerald-600 transition-colors" />
                   </div>
                   <span className="text-[11px] text-neutral-500 flex items-center gap-1 mt-0.5">
                     <span className="capitalize font-medium text-emerald-700 bg-emerald-50 px-1 rounded text-[10px]">
                       {currentUser.role || currentUser.account_type || "User"}
                     </span>
-                    {(currentUser.company || currentUser.business_name || currentUser.email || "").slice(0, 18)}...
+                    {currentUser.company && currentUser.company !== "EcoLoop Partner" && currentUser.company !== "Ecoloop Partner" && (
+                      <span>{currentUser.company.slice(0, 18)}...</span>
+                    )}
                   </span>
                 </div>
               </button>

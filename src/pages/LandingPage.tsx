@@ -99,6 +99,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           const remainingQuantity = Math.max(0, originalQuantity - soldQuantity);
           const status = remainingQuantity <= 0 ? "sold" : item.status;
           const purchaseHistory = [...(item.purchaseHistory || []), newPurchase];
+
+          updateWasteListing(listing.id, {
+            status,
+            remaining_quantity: remainingQuantity,
+            remainingQuantity: remainingQuantity,
+            total_quantity: remainingQuantity,
+            totalQuantity: remainingQuantity,
+            sold_quantity: soldQuantity,
+            soldQuantity: soldQuantity,
+            originalQuantity,
+          }).catch((err) => console.error("Error updating sold status:", err));
+
           return {
             ...item,
             originalQuantity,
@@ -142,7 +154,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       return {
         id: profile.auth_user_id || user?.id || "user-1",
         name: profile.full_name || user?.email?.split("@")[0] || "EcoLoop User",
-        company: (profile as any).business_name || "EcoLoop Partner",
+        company: (profile as any).business_name || "",
         role: (profile as any).account_type || "individual",
         email: profile.email || user?.email || "",
         location: `${profile.city || "Chennai"}, ${profile.state || "Tamil Nadu"}`,
@@ -255,7 +267,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         seller: listingData.seller || {
           id: activeUser.id || "user-seller-1",
           name: activeUser.name || "Seller",
-          company: activeUser.company || "EcoLoop Partner",
+          company: activeUser.company || "",
         },
         listedDate: "Today",
         viewCount: 1,
@@ -544,7 +556,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
   // Filtered & Sorted listings for Marketplace
   const filteredListings = useMemo(() => {
-    let result = [...allListings];
+    let result = allListings.filter(
+      (item) =>
+        item.status !== "sold" &&
+        (item.remainingQuantity === undefined || item.remainingQuantity > 0) &&
+        item.totalQuantity > 0
+    );
 
     if (selectedCategory !== "All Categories") {
       result = result.filter(

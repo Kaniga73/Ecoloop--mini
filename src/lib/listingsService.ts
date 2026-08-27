@@ -63,11 +63,10 @@ export async function createWasteListing(listingData: any): Promise<{ data?: any
     ...listingData,
   };
 
-  // Always store in local storage so it persists even in simulation mode
   const existingListings = getStoredListings();
-  saveStoredListings([simulatedRow, ...existingListings]);
 
   if (!isLiveSupabaseConfigured || !supabase) {
+    saveStoredListings([simulatedRow, ...existingListings]);
     return { data: simulatedRow };
   }
 
@@ -80,10 +79,14 @@ export async function createWasteListing(listingData: any): Promise<{ data?: any
 
     if (error) {
       console.warn('Supabase insert error, falling back to local storage:', error.message);
+      saveStoredListings([simulatedRow, ...existingListings]);
       return { data: simulatedRow };
     }
+
+    saveStoredListings([data, ...existingListings.filter((item) => item.id !== newId)]);
     return { data };
   } catch (err: any) {
+    saveStoredListings([simulatedRow, ...existingListings]);
     return { data: simulatedRow };
   }
 }
@@ -162,7 +165,11 @@ export async function fetchActiveListings(): Promise<WasteListing[]> {
     }
   }
 
-  const simulatedRows = getStoredListings().filter((r: any) => r.status === 'available');
+  const simulatedRows = getStoredListings().filter((r: any) => 
+    r.status !== 'sold' && 
+    (r.remainingQuantity === undefined || Number(r.remainingQuantity) > 0) &&
+    (r.quantity === undefined || Number(r.quantity) > 0 || Number(r.totalQuantity) > 0)
+  );
   
   // Deduplicate rows by ID (giving priority to Supabase row if exists)
   const rowMap = new Map<string, any>();
@@ -173,11 +180,26 @@ export async function fetchActiveListings(): Promise<WasteListing[]> {
     if (r && r.id && !rowMap.has(r.id)) rowMap.set(r.id, r);
   }
 
-  const allRows = Array.from(rowMap.values());
+  // Secondary Deduplication by content fingerprint to prevent duplicate listings with different IDs
+  const uniqueRows: any[] = [];
+  const seenFingerprints = new Set<string>();
+
+  for (const r of Array.from(rowMap.values())) {
+    const titleKey = (r.title || '').trim().toLowerCase();
+    const sellerKey = (r.seller_id || r.seller?.id || r.seller_name || r.seller?.name || '').trim().toLowerCase();
+    const priceKey = r.price || r.pricePerUnit || 0;
+    const descKey = (r.description || '').slice(0, 30).trim().toLowerCase();
+    const fingerprint = `${titleKey}_${sellerKey}_${priceKey}_${descKey}`;
+
+    if (!seenFingerprints.has(fingerprint)) {
+      seenFingerprints.add(fingerprint);
+      uniqueRows.push(r);
+    }
+  }
 
   try {
     // Map DB/local rows to WasteListing frontend interface
-    const listings = await Promise.all(allRows.map(async (row: any): Promise<WasteListing> => {
+    const listings = await Promise.all(uniqueRows.map(async (row: any): Promise<WasteListing> => {
       
       let sellerName = row.seller_name || 'Seller';
       let sellerCompany = row.seller_company || 'Business';
@@ -235,6 +257,11 @@ export async function fetchActiveListings(): Promise<WasteListing[]> {
         } : undefined
       };
 
+      const origQty = row.originalQuantity ?? Number(row.quantity || row.totalQuantity || 0);
+      const soldQty = row.soldQuantity ?? 0;
+      const remQty = row.remainingQuantity !== undefined ? Number(row.remainingQuantity) : Math.max(0, origQty - soldQty);
+      const isCompletelySold = (remQty <= 0) || row.status === 'sold';
+
       return {
         id: row.id,
         title: row.title,
@@ -246,11 +273,11 @@ export async function fetchActiveListings(): Promise<WasteListing[]> {
         pricePerUnit: Number(row.price || row.pricePerUnit || 0),
         unit: row.unit || 'Ton',
         currency: row.currency || '₹',
-        totalQuantity: row.remainingQuantity !== undefined ? row.remainingQuantity : Number(row.quantity || row.totalQuantity || 0),
-        originalQuantity: row.originalQuantity ?? Number(row.quantity || row.totalQuantity || 0),
-        soldQuantity: row.soldQuantity ?? 0,
-        remainingQuantity: row.remainingQuantity ?? Math.max(0, (row.originalQuantity ?? Number(row.quantity || row.totalQuantity || 0)) - (row.soldQuantity ?? 0)),
-        totalEstimatedValue: Number(row.price || row.pricePerUnit || 0) * Number(row.quantity || row.totalQuantity || 0),
+        totalQuantity: remQty,
+        originalQuantity: origQty,
+        soldQuantity: soldQty,
+        remainingQuantity: remQty,
+        totalEstimatedValue: Number(row.price || row.pricePerUnit || 0) * remQty,
         minPurchaseQuantity: row.min_purchase_quantity || row.minPurchaseQuantity || 1,
         isPriceNegotiable: row.price_type ? row.price_type !== 'Fixed' : (row.isPriceNegotiable ?? true),
         priceType: row.price_type || row.priceType || 'Fixed',
@@ -276,11 +303,11 @@ export async function fetchActiveListings(): Promise<WasteListing[]> {
         interestedBuyers: row.interestedBuyers || [],
         listedDate: row.created_at || row.listedDate || 'Today',
         viewCount: row.viewCount || 0,
-        status: (row.remainingQuantity !== undefined && row.remainingQuantity <= 0) ? 'sold' : (row.status || 'available'),
+        status: isCompletelySold ? 'sold' : (row.status || 'available'),
       };
     }));
 
-    return listings;
+    return listings.filter((l) => l.status !== 'sold' && (l.remainingQuantity === undefined || l.remainingQuantity > 0));
   } catch (err) {
     console.error("Error mapping active listings:", err);
     return [];
