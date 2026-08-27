@@ -13,7 +13,8 @@ import {
   User,
   IndianRupee,
   Image as ImageIcon,
-  ArrowRight
+  ArrowRight,
+  Truck
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { AuthView, WasteListing } from "../types";
@@ -60,14 +61,6 @@ export const SellPage: React.FC<SellPageProps> = ({
   const [bulkPrice, setBulkPrice] = useState(initialListing?.bulkPrice ? String(initialListing.bulkPrice) : "");
   
   const [listingStartDate, setListingStartDate] = useState(initialListing?.startDate ? initialListing.startDate.split("T")[0] : new Date().toISOString().split("T")[0]);
-  
-  // Set default deadline 30 days from now if not editing
-  const [listingDeadline, setListingDeadline] = useState(() => {
-    if (initialListing?.deadline) return initialListing.deadline.split("T")[0];
-    const d = new Date();
-    d.setDate(d.getDate() + 30);
-    return d.toISOString().split("T")[0];
-  });
   
   const [city, setCity] = useState(initialListing?.location.city || "");
   const [state, setState] = useState(initialListing?.location.stateOrCountry || "");
@@ -316,8 +309,8 @@ Return ONLY a strictly valid JSON object without markdown formatting, with these
       return;
     }
     if (!user) return alert("Must be logged in.");
-    if (!title || !category || !quantity || !unit || !price || !listingDeadline) {
-      return alert("Please fill all required fields (Title, Category, Quantity, Unit, Price, Deadline).");
+    if (!title || !category || !quantity || !unit || !price) {
+      return alert("Please fill all required fields (Title, Category, Quantity, Unit, Price).");
     }
 
     setIsSubmitting(true);
@@ -358,7 +351,7 @@ Return ONLY a strictly valid JSON object without markdown formatting, with these
         bulk_purchase_allowed: bulkPurchaseAllowed,
         bulk_price: bulkPrice ? parseFloat(bulkPrice) : null,
         start_date: listingStartDate,
-        deadline: listingDeadline,
+        deadline: null,
         location_city: city,
         location_state: state,
         location_country: country,
@@ -745,31 +738,20 @@ Return ONLY a strictly valid JSON object without markdown formatting, with these
                   
                   <div>
                     <h2 className="text-lg font-bold text-neutral-900 mb-4 flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-neutral-400" /> Deadlines & Logistics
+                      <Truck className="w-4 h-4 text-neutral-400" /> Logistics Option
                     </h2>
                     
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <FieldLabel label="Listing Deadline" required />
-                        <input
-                          type="date"
-                          value={listingDeadline}
-                          onChange={(e) => setListingDeadline(e.target.value)}
-                          className="w-full px-3 py-2 bg-neutral-50 border border-rose-200 rounded-lg text-sm focus:bg-white focus:ring-1 focus:ring-rose-500 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <FieldLabel label="Logistics Option" />
-                        <select
-                          value={deliveryOption}
-                          onChange={(e) => setDeliveryOption(e.target.value)}
-                          className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm focus:bg-white outline-none"
-                        >
-                          <option value="Both">Buyer Pickup or Seller Delivery</option>
-                          <option value="Pickup">Buyer MUST arrange Pickup (Recommended for Bulk)</option>
-                          <option value="Delivery">Seller will handle Delivery (Requires transport fee)</option>
-                        </select>
-                      </div>
+                    <div>
+                      <FieldLabel label="Logistics Option" />
+                      <select
+                        value={deliveryOption}
+                        onChange={(e) => setDeliveryOption(e.target.value)}
+                        className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm focus:bg-white outline-none"
+                      >
+                        <option value="Both">Buyer Pickup or Seller Delivery</option>
+                        <option value="Pickup">Buyer MUST arrange Pickup (Recommended for Bulk)</option>
+                        <option value="Delivery">Seller will handle Delivery (Requires transport fee)</option>
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -871,10 +853,6 @@ Return ONLY a strictly valid JSON object without markdown formatting, with these
                   <div>
                     <span className="text-neutral-500 block text-[10px] uppercase font-bold tracking-wider mb-0.5">Location</span>
                     <span className="font-semibold text-neutral-900">{city}, {state}</span>
-                  </div>
-                  <div>
-                    <span className="text-neutral-500 block text-[10px] uppercase font-bold tracking-wider mb-0.5">Deadline</span>
-                    <span className="font-semibold text-rose-600">{listingDeadline}</span>
                   </div>
                 </div>
               </div>
