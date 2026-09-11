@@ -67,6 +67,11 @@ export const ListingCard: React.FC<ListingCardProps> = ({
             <span className="bg-emerald-50 text-emerald-800 font-medium px-2 py-0.5 rounded">
               {listing.category}
             </span>
+            {listing.hazardousMaterial && (
+              <span className="bg-rose-50 text-rose-700 font-bold px-1.5 py-0.5 rounded border border-rose-200 text-[10px]">
+                Hazardous
+              </span>
+            )}
             <span className="flex items-center gap-1 text-neutral-600">
               <MapPin className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
               <span className="line-clamp-1">{listing.location.city}, {listing.location.stateOrCountry}</span>

@@ -14,7 +14,11 @@ import {
   IndianRupee,
   Image as ImageIcon,
   ArrowRight,
-  Truck
+  Truck,
+  AlertTriangle,
+  ShieldCheck,
+  AlertCircle,
+  Info
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { AuthView, WasteListing } from "../types";
@@ -72,7 +76,14 @@ export const SellPage: React.FC<SellPageProps> = ({
   const [aiSuggestions, setAiSuggestions] = useState<any>(initialListing?.aiSuggestions || null);
   const [aiInsights, setAiInsights] = useState(initialListing?.aiSuggestions?.whatCanIDoWithThis || "");
   const [recyclability, setRecyclability] = useState(initialListing?.recyclability || "");
+  const [isRecyclable, setIsRecyclable] = useState<boolean | null>(
+    initialListing?.aiSuggestions?.isRecyclable ?? (initialListing?.recyclability ? !initialListing.recyclability.toLowerCase().includes("non") : null)
+  );
   const [reusability, setReusability] = useState(initialListing?.reusability || "");
+  const [wasteType, setWasteType] = useState(initialListing?.aiSuggestions?.wasteType || initialListing?.wasteCategory || "");
+  const [hazardousMaterial, setHazardousMaterial] = useState<boolean>(initialListing?.hazardousMaterial || false);
+  const [hazardousReason, setHazardousReason] = useState<string>(initialListing?.hazardousReason || initialListing?.aiSuggestions?.hazardousReason || "");
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   type FieldOrigin = 'seller' | 'ai' | null;
@@ -86,6 +97,7 @@ export const SellPage: React.FC<SellPageProps> = ({
     price: null,
     brand: null,
     modelCode: null,
+    hazardous: null,
   });
 
   useEffect(() => {
@@ -115,7 +127,12 @@ export const SellPage: React.FC<SellPageProps> = ({
     setAiSuggestions(null);
     setAiInsights("");
     setRecyclability("");
+    setIsRecyclable(null);
     setReusability("");
+    setWasteType("");
+    setHazardousMaterial(false);
+    setHazardousReason("");
+    setValidationError(null);
     setFieldOrigins({
       title: null,
       category: null,
@@ -126,9 +143,8 @@ export const SellPage: React.FC<SellPageProps> = ({
       price: null,
       brand: null,
       modelCode: null,
+      hazardous: null,
     });
-    // Don't clear seller-entered data, but if it was AI, we could optionally clear it.
-    // For now, we'll just clear the AI state so the UI doesn't look like AI is overriding.
   };
 
   const handleUseProfileLocation = () => {
@@ -202,12 +218,15 @@ export const SellPage: React.FC<SellPageProps> = ({
       return;
     }
     setIsAnalyzing(true);
+    setValidationError(null);
     setCurrentStep(2); 
 
     try {
       let base64Image = "";
+      let mimeType = "image/jpeg";
       if (images.length > 0) {
         const file = images[0];
+        mimeType = file.type || "image/jpeg";
         const reader = new FileReader();
         base64Image = await new Promise((resolve) => {
           reader.onload = (e) => resolve(e.target?.result as string);
@@ -215,32 +234,47 @@ export const SellPage: React.FC<SellPageProps> = ({
         });
       }
       
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) throw new Error("Gemini API key missing");
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (import.meta.env as any).GEMINI_API_KEY;
+      if (!apiKey) throw new Error("Gemini API key is not configured. Please verify your environment settings.");
 
       const genAI = new GoogleGenerativeAI(apiKey);
 
-      const prompt = `Analyze this industrial waste item for a B2B marketplace.
-Return ONLY a strictly valid JSON object without markdown formatting, with these keys:
+      const prompt = `Analyze this industrial or commercial waste item for EcoLoop, a B2B circular economy marketplace.
+Return ONLY a strictly valid JSON object without markdown formatting or code blocks, with these exact keys:
 {
-  "title": "Clear, professional name of the waste",
+  "isValidWaste": true or false,
+  "isHuman": true or false,
+  "rejectionReason": "Detailed reason if image is rejected, otherwise empty string",
+  "title": "Clear, professional name of the waste item",
+  "wasteType": "Concise waste category and classification (e.g. Post-Industrial Thermoplastic, Heavy Ferrous Scrap, Hazardous Chemical Byproduct, E-Waste Circuit Boards, Bio Waste)",
   "category": "Must be exactly one of: Scrap Metal, Industrial Plastics, Chemical Byproducts, E-Waste, Textiles & Fibers, Construction & Demolition, Rubber & Tyres, Organic / Bio Waste, Other",
-  "subcategory": "More specific type",
-  "brand": "Extract if category is E-Waste or equipment (otherwise empty string)",
-  "modelCode": "Extract if category is E-Waste or equipment (otherwise empty string)",
-  "material": "Primary material composition",
+  "subcategory": "More specific subcategory or grade",
+  "isRecyclable": true or false,
+  "recyclability": "High / Medium / Low / Non-Recyclable with concise technical reason",
+  "isHazardous": true or false,
+  "hazardousReason": "Safety assessment: If hazardous, explain specific hazard (e.g., flammable solvents, corrosive acid, toxic heavy metals); if non-hazardous, specify 'Non-hazardous inert material'",
+  "brand": "Extract if category is E-Waste or industrial equipment (otherwise empty string)",
+  "modelCode": "Extract if category is E-Waste or industrial equipment (otherwise empty string)",
+  "material": "Primary chemical or material composition",
   "condition": "Must be exactly one of: New, Good, Fair, Mixed, Processed",
-  "description": "2-3 sentences describing the potential value",
-  "recyclability": "High/Medium/Low with short reason",
-  "reusability": "High/Medium/Low with short reason",
-  "suggestedPriceRange": "Number range in INR per Tonne/Kg",
+  "description": "2-3 sentences describing industrial composition, consistency, and potential secondary market value",
+  "reusability": "High / Medium / Low with concise reason",
+  "suggestedPriceRange": "Estimated price range in INR (e.g. ₹35,000 - ₹45,000 / Tonne or ₹80 - ₹120 / Kg)",
   "tags": ["tag1", "tag2"],
-  "potentialBuyers": "Types of businesses that would buy this",
-  "whatCanIDoWithThis": "Bullet points on second-life applications"
-}`;
+  "potentialBuyers": "Types of industrial recyclers or processors that would buy this",
+  "whatCanIDoWithThis": "Bullet points on circular second-life applications"
+}
+
+CRITICAL RULES:
+1. FIRST inspect if the image contains a human, person, selfie, portrait, face, or anything that is clearly NOT industrial waste or recyclable goods.
+   If a human or non-waste image is detected:
+   Set "isValidWaste": false
+   Set "isHuman": true
+   Set "rejectionReason": "Human detected in image. EcoLoop only accepts industrial scrap, recyclable materials, and commercial byproducts. Please upload a photo of the actual waste item."
+2. Explicitly determine if the item is recyclable ("isRecyclable": true/false) and whether it is hazardous ("isHazardous": true/false).`;
 
       let result;
-      const modelsToTry = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-pro-latest"];
+      const modelsToTry = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest", "gemini-pro-latest"];
       let lastError;
 
       for (const modelName of modelsToTry) {
@@ -250,20 +284,15 @@ Return ONLY a strictly valid JSON object without markdown formatting, with these
             const base64Data = base64Image.split(",")[1];
             result = await model.generateContent([
               prompt,
-              { inlineData: { data: base64Data, mimeType: images[0].type } }
+              { inlineData: { data: base64Data, mimeType: mimeType || "image/jpeg" } }
             ]);
           } else {
             result = await model.generateContent(prompt);
           }
-          // If successful, break out of the loop
-          break;
+          if (result) break;
         } catch (e: any) {
           lastError = e;
-          console.warn(`Model ${modelName} failed:`, e.message);
-          // Only continue to the next model if it's a 503 or 404
-          if (!e.message.includes("503") && !e.message.includes("404")) {
-            throw e;
-          }
+          console.warn(`Model ${modelName} failed:`, e?.message || e);
         }
       }
 
@@ -280,24 +309,48 @@ Return ONLY a strictly valid JSON object without markdown formatting, with these
       }
       const parsed = JSON.parse(cleanedJson);
 
+      // Human or Invalid Waste Validation
+      if (parsed.isHuman === true || parsed.isValidWaste === false) {
+        const reason = parsed.rejectionReason || "Human or invalid non-waste item detected in the image. Please upload a clear photo of waste, scrap, or recyclable materials.";
+        setValidationError(reason);
+        setIsAnalyzing(false);
+        setCurrentStep(1);
+        return;
+      }
+
       setAiSuggestions(parsed);
+      setValidationError(null);
       
-      if (!title) { setTitle(parsed.title); setFieldOrigins(p => ({...p, title: 'ai'})); }
+      if (!title && parsed.title) { setTitle(parsed.title); setFieldOrigins(p => ({...p, title: 'ai'})); }
       if (!category && categories.includes(parsed.category)) { setCategory(parsed.category); setFieldOrigins(p => ({...p, category: 'ai'})); }
-      if (!subcategory) { setSubcategory(parsed.subcategory); setFieldOrigins(p => ({...p, subcategory: 'ai'})); }
+      if (!subcategory && parsed.subcategory) { setSubcategory(parsed.subcategory); setFieldOrigins(p => ({...p, subcategory: 'ai'})); }
       if (!brand && parsed.brand) { setBrand(parsed.brand); setFieldOrigins(p => ({...p, brand: 'ai'})); }
       if (!modelCode && parsed.modelCode) { setModelCode(parsed.modelCode); setFieldOrigins(p => ({...p, modelCode: 'ai'})); }
-      if (!material) { setMaterial(parsed.material); setFieldOrigins(p => ({...p, material: 'ai'})); }
-      if (!condition) { setCondition(parsed.condition); setFieldOrigins(p => ({...p, condition: 'ai'})); }
-      if (!description) { setDescription(parsed.description); setFieldOrigins(p => ({...p, description: 'ai'})); }
+      if (!material && parsed.material) { setMaterial(parsed.material); setFieldOrigins(p => ({...p, material: 'ai'})); }
+      if (!condition && parsed.condition) { setCondition(parsed.condition); setFieldOrigins(p => ({...p, condition: 'ai'})); }
+      if (!description && parsed.description) { setDescription(parsed.description); setFieldOrigins(p => ({...p, description: 'ai'})); }
       
-      setRecyclability(parsed.recyclability);
-      setReusability(parsed.reusability);
-      setAiInsights(parsed.whatCanIDoWithThis);
+      if (parsed.wasteType) setWasteType(parsed.wasteType);
+      if (parsed.recyclability) setRecyclability(parsed.recyclability);
+      if (typeof parsed.isRecyclable === 'boolean') {
+        setIsRecyclable(parsed.isRecyclable);
+      } else if (parsed.recyclability) {
+        setIsRecyclable(!parsed.recyclability.toLowerCase().includes("non"));
+      }
+
+      if (typeof parsed.isHazardous === 'boolean') {
+        setHazardousMaterial(parsed.isHazardous);
+        setFieldOrigins(p => ({...p, hazardous: 'ai'}));
+      }
+      if (parsed.hazardousReason) setHazardousReason(parsed.hazardousReason);
+      if (parsed.reusability) setReusability(parsed.reusability);
+      if (parsed.whatCanIDoWithThis) setAiInsights(parsed.whatCanIDoWithThis);
       
     } catch (err: any) {
       console.error("AI Analysis failed:", err);
-      alert("AI Analysis failed. Please fill the details manually.");
+      const errMsg = err?.message || "AI Analysis failed. Please check your image or fill details manually.";
+      setValidationError(errMsg);
+      setCurrentStep(1);
     } finally {
       setIsAnalyzing(false);
     }
@@ -339,9 +392,21 @@ Return ONLY a strictly valid JSON object without markdown formatting, with these
         images: finalImages.length > 0 ? finalImages : [
           "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800&auto=format&fit=crop&q=80"
         ],
-        ai_suggestions: aiSuggestions || {},
+        ai_suggestions: {
+          ...(aiSuggestions || {}),
+          wasteType,
+          isRecyclable,
+          recyclability,
+          isHazardous: hazardousMaterial,
+          hazardousReason,
+          whatCanIDoWithThis: aiInsights,
+        },
         recyclability,
         reusability,
+        waste_category: wasteType || category,
+        hazardous_material: hazardousMaterial,
+        hazardousMaterial: hazardousMaterial,
+        hazardousReason: hazardousReason,
         price: parseFloat(price),
         currency: "₹",
         price_type: "Fixed",
@@ -434,6 +499,41 @@ Return ONLY a strictly valid JSON object without markdown formatting, with these
       <main className="max-w-6xl mx-auto px-4 py-4 h-[calc(100vh-140px)] flex flex-col">
         {currentStep === 1 && (
           <div className="flex-1 flex flex-col justify-center max-w-3xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {validationError && (
+              <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3.5 text-rose-900 shadow-sm animate-in fade-in slide-in-from-top-2">
+                <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0 text-rose-600 shadow-xs">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-sm text-rose-950 flex items-center gap-1.5">
+                      Validation Failed: Image Rejected
+                    </h4>
+                    <button
+                      onClick={() => setValidationError(null)}
+                      className="text-rose-400 hover:text-rose-700 transition-colors p-1 rounded-lg cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-rose-800 mt-1 leading-relaxed">
+                    {validationError}
+                  </p>
+                  <div className="mt-2.5 flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setValidationError(null);
+                        fileInputRef.current?.click();
+                      }}
+                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                    >
+                      Upload Waste Image
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="text-center space-y-2 mb-6">
               <h2 className="text-2xl font-extrabold text-neutral-900">Upload Product Images</h2>
               <p className="text-neutral-500 text-sm">Upload up to 8 high-quality images. AI will analyze the first image to help you fill the form.</p>
@@ -627,34 +727,164 @@ Return ONLY a strictly valid JSON object without markdown formatting, with these
                       className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm h-12 focus:bg-white outline-none resize-none"
                     />
                   </div>
+
+                  {/* Row 6: Hazardous Waste Classification */}
+                  <div className={`p-3.5 rounded-xl border transition-all ${hazardousMaterial ? 'bg-rose-50/80 border-rose-200 shadow-xs' : 'bg-neutral-50 border-neutral-200'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${hazardousMaterial ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-700'}`}>
+                          {hazardousMaterial ? <AlertTriangle className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-neutral-900">Hazardous Material</span>
+                            {fieldOrigins.hazardous === 'ai' && (
+                              <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                                <Sparkles className="w-3 h-3" /> AI
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-neutral-500">
+                            {hazardousMaterial ? "Hazardous item: requires compliant transport & handling" : "Non-hazardous: safe for standard circular processing"}
+                          </p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={hazardousMaterial}
+                          onChange={(e) => {
+                            setHazardousMaterial(e.target.checked);
+                            setFieldOrigins(p => ({ ...p, hazardous: 'seller' }));
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-10 h-5 bg-neutral-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-600"></div>
+                      </label>
+                    </div>
+
+                    {hazardousMaterial && (
+                      <div className="mt-2.5 pt-2.5 border-t border-rose-200/70">
+                        <input
+                          type="text"
+                          value={hazardousReason}
+                          onChange={(e) => setHazardousReason(e.target.value)}
+                          placeholder="Hazard details (e.g., Flammable solvent, Toxic residue, Corrosive acid)"
+                          className="w-full px-3 py-1.5 bg-white border border-rose-200 rounded-lg text-xs text-neutral-900 focus:ring-1 focus:ring-rose-500 outline-none"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Right Column: AI Insights */}
-              <div className="lg:w-80 shrink-0 bg-gradient-to-br from-emerald-900 to-emerald-800 rounded-2xl p-5 shadow-xl text-white relative overflow-hidden flex flex-col">
-                <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/20 blur-3xl rounded-full translate-x-1/3 -translate-y-1/3" />
-                <div className="relative z-10 flex-1 flex flex-col">
-                  <div className="flex justify-between items-start mb-3">
-                    <h2 className="text-base font-extrabold flex items-center gap-2">
-                      <Recycle className="w-5 h-5 text-emerald-400" /> What Can I Do With This?
-                    </h2>
+              {/* Right Column: AI Insights & Classification Details */}
+              <div className="lg:w-88 shrink-0 bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-800 rounded-2xl p-5 shadow-xl text-white relative overflow-hidden flex flex-col">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/20 blur-3xl rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none" />
+                <div className="relative z-10 flex-1 flex flex-col min-h-0">
+                  
+                  {/* Header */}
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-emerald-400" />
+                      <h3 className="text-sm font-extrabold tracking-wide uppercase text-emerald-300">
+                        AI Waste Analysis
+                      </h3>
+                    </div>
                     {aiSuggestions && (
-                      <button onClick={clearAiSuggestions} className="text-[10px] bg-white/20 hover:bg-white/30 px-2 py-1 rounded text-white cursor-pointer transition-colors">Clear AI</button>
+                      <button 
+                        onClick={clearAiSuggestions} 
+                        className="text-[10px] bg-white/15 hover:bg-white/25 px-2 py-0.5 rounded-md text-emerald-100 transition-colors cursor-pointer"
+                      >
+                        Clear AI
+                      </button>
                     )}
                   </div>
-                  <div className="text-emerald-50 text-xs leading-relaxed whitespace-pre-line font-medium overflow-hidden flex-1 mb-4">
-                    {aiInsights || "AI couldn't generate specific insights, but this material is highly valuable in secondary markets."}
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 pt-4 border-t border-emerald-700/50 mt-auto">
-                    <div>
-                      <div className="text-emerald-300 text-[9px] font-bold uppercase tracking-wider mb-0.5">Recyclability</div>
-                      <div className="font-semibold text-sm">{recyclability || "Unknown"}</div>
+
+                  {/* Waste Classification Badge */}
+                  <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/15 mb-3.5">
+                    <div className="text-[10px] uppercase font-bold tracking-wider text-emerald-300 mb-0.5 flex items-center gap-1.5">
+                      <Bot className="w-3.5 h-3.5 text-emerald-400" /> What Type of Waste
                     </div>
-                    <div>
-                      <div className="text-emerald-300 text-[9px] font-bold uppercase tracking-wider mb-0.5">Reusability</div>
-                      <div className="font-semibold text-sm">{reusability || "Unknown"}</div>
+                    <div className="font-extrabold text-sm text-white">
+                      {wasteType || (category ? `${category} Waste` : "Industrial Waste Item")}
+                    </div>
+                    {subcategory && (
+                      <div className="text-xs text-emerald-200 font-medium mt-0.5">
+                        Grade / Subtype: {subcategory}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Recyclability & Hazardous Assessment Cards */}
+                  <div className="grid grid-cols-2 gap-2.5 mb-3.5">
+                    {/* Recyclable Card */}
+                    <div className="bg-emerald-950/60 p-2.5 rounded-xl border border-emerald-700/60 flex flex-col justify-between">
+                      <div className="text-[9px] font-bold uppercase tracking-wider text-emerald-300 mb-1">
+                        Recyclable Status
+                      </div>
+                      <div className="flex items-center gap-1.5 my-0.5">
+                        {isRecyclable === false ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                            <X className="w-3 h-3 text-rose-400" /> Non-Recyclable
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+                            <Recycle className="w-3 h-3 text-emerald-400" /> Recyclable
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-emerald-100 line-clamp-2 mt-1">
+                        {recyclability || "High recovery potential"}
+                      </div>
+                    </div>
+
+                    {/* Hazardous Card */}
+                    <div className="bg-emerald-950/60 p-2.5 rounded-xl border border-emerald-700/60 flex flex-col justify-between">
+                      <div className="text-[9px] font-bold uppercase tracking-wider text-emerald-300 mb-1">
+                        Hazard Assessment
+                      </div>
+                      <div className="flex items-center gap-1.5 my-0.5">
+                        {hazardousMaterial ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-400/40">
+                            <AlertTriangle className="w-3 h-3 text-amber-400" /> Hazardous
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+                            <ShieldCheck className="w-3 h-3 text-emerald-400" /> Non-Hazardous
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-emerald-100 line-clamp-2 mt-1">
+                        {hazardousReason || (hazardousMaterial ? "Special handling needed" : "Safe inert material")}
+                      </div>
                     </div>
                   </div>
+
+                  {/* Second Life & Insights */}
+                  <div className="bg-emerald-950/40 rounded-xl p-3 border border-emerald-700/40 flex-1 flex flex-col min-h-0 mb-3 overflow-hidden">
+                    <div className="text-[10px] uppercase font-bold tracking-wider text-emerald-300 mb-1.5 flex items-center gap-1.5">
+                      <Recycle className="w-3.5 h-3.5 text-emerald-400" /> Applications & Next Life
+                    </div>
+                    <div className="text-emerald-50 text-xs leading-relaxed whitespace-pre-line font-medium overflow-y-auto pr-1 flex-1">
+                      {aiInsights || "AI extracted material properties. This item can be traded and processed in circular industrial loops."}
+                    </div>
+                  </div>
+
+                  {/* Footer Meta: Reusability & Rate */}
+                  <div className="grid grid-cols-2 gap-2 pt-2.5 border-t border-emerald-700/50 mt-auto text-xs">
+                    <div>
+                      <div className="text-emerald-300 text-[9px] font-bold uppercase tracking-wider">Reusability</div>
+                      <div className="font-bold text-white text-xs">{reusability || "Direct Reuse"}</div>
+                    </div>
+                    {aiSuggestions?.suggestedPriceRange && (
+                      <div>
+                        <div className="text-emerald-300 text-[9px] font-bold uppercase tracking-wider">Est. Market Rate</div>
+                        <div className="font-extrabold text-white text-xs">{aiSuggestions.suggestedPriceRange}</div>
+                      </div>
+                    )}
+                  </div>
+
                 </div>
               </div>
 

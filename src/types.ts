@@ -187,6 +187,13 @@ export interface WasteListing {
   manufacturingYear?: string;
   condition?: string;
   aiSuggestions?: {
+    isValidWaste?: boolean;
+    isHuman?: boolean;
+    rejectionReason?: string;
+    wasteType?: string;
+    isRecyclable?: boolean;
+    isHazardous?: boolean;
+    hazardousReason?: string;
     material?: string;
     recyclable?: string;
     reusable?: string;
@@ -194,12 +201,14 @@ export interface WasteListing {
     tags?: string[];
     ecoClassification?: string;
     whatCanIDoWithThis?: string;
+    potentialBuyers?: string;
   };
   materialType?: string;
   recyclability?: string;
   reusability?: string;
   wasteCategory?: string;
   hazardousMaterial?: boolean;
+  hazardousReason?: string;
   bulkPurchaseAllowed?: boolean;
   bulkPrice?: number;
   startDate?: string;

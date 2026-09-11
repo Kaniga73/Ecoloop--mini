@@ -16,6 +16,10 @@ import {
   Sparkles,
   Building2,
   FileText,
+  AlertTriangle,
+  ShieldCheck,
+  Bot,
+  X
 } from "lucide-react";
 import { WasteListing, UserProfile } from "../types";
 import { LocationMap } from "../components/common/LocationMap";
@@ -256,28 +260,86 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({
           </div>
 
           {/* Eco & Circular Economy Insights */}
-          {(listing.recyclability || listing.reusability || listing.aiSuggestions?.whatCanIDoWithThis) && (
-            <div className="bg-gradient-to-br from-emerald-900 to-emerald-800 rounded-2xl p-6 shadow-md text-white space-y-4">
+          {(listing.recyclability || listing.reusability || listing.aiSuggestions?.whatCanIDoWithThis || listing.hazardousMaterial !== undefined || listing.aiSuggestions?.wasteType) && (
+            <div className="bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-800 rounded-2xl p-6 shadow-md text-white space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-extrabold flex items-center gap-2 text-emerald-300">
                   <Recycle className="w-5 h-5 text-emerald-400" /> Eco & Circular Economy Insights
                 </h3>
                 <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-700/60 border border-emerald-500/30 px-2.5 py-1 rounded-full text-emerald-200">
-                  Verified
+                  AI Verified
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="bg-emerald-950/40 p-3 rounded-xl border border-emerald-700/50">
-                  <span className="text-emerald-300 text-[10px] font-bold uppercase tracking-wider block mb-0.5">Recyclability</span>
-                  <span className="font-bold text-sm text-white">{listing.recyclability || listing.aiSuggestions?.recyclable || "High"}</span>
+              {/* Waste Classification */}
+              {(listing.aiSuggestions?.wasteType || listing.wasteCategory) && (
+                <div className="bg-emerald-950/60 px-3.5 py-2 rounded-xl border border-emerald-700/50 flex items-center justify-between">
+                  <span className="text-emerald-300 text-xs font-bold flex items-center gap-1.5">
+                    <Bot className="w-3.5 h-3.5 text-emerald-400" /> Waste Classification:
+                  </span>
+                  <span className="text-white font-bold text-xs">
+                    {listing.aiSuggestions?.wasteType || listing.wasteCategory}
+                  </span>
                 </div>
+              )}
+
+              {/* Assessment Grid */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                {/* Recyclable Status */}
                 <div className="bg-emerald-950/40 p-3 rounded-xl border border-emerald-700/50">
-                  <span className="text-emerald-300 text-[10px] font-bold uppercase tracking-wider block mb-0.5">Reusability</span>
-                  <span className="font-bold text-sm text-white">{listing.reusability || listing.aiSuggestions?.reusable || "Direct Reuse"}</span>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-emerald-300 text-[10px] font-bold uppercase tracking-wider block">Recyclability</span>
+                    {listing.aiSuggestions?.isRecyclable === false ? (
+                      <span className="text-[10px] font-bold text-rose-300 bg-rose-500/20 px-1.5 py-0.5 rounded">Non-Recyclable</span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/20 px-1.5 py-0.5 rounded">Recyclable</span>
+                    )}
+                  </div>
+                  <span className="font-bold text-sm text-white block">
+                    {listing.recyclability || listing.aiSuggestions?.recyclable || "Recyclable"}
+                  </span>
+                </div>
+
+                {/* Hazard Rating */}
+                <div className="bg-emerald-950/40 p-3 rounded-xl border border-emerald-700/50">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-emerald-300 text-[10px] font-bold uppercase tracking-wider block">Hazard Rating</span>
+                    {listing.hazardousMaterial ? (
+                      <span className="text-[10px] font-bold text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3 text-amber-400" /> Hazardous
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <ShieldCheck className="w-3 h-3 text-emerald-400" /> Safe
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-bold text-xs text-white block truncate">
+                    {listing.hazardousReason || listing.aiSuggestions?.hazardousReason || (listing.hazardousMaterial ? "Hazardous item" : "Non-hazardous inert material")}
+                  </span>
                 </div>
               </div>
 
+              {/* Hazardous Warning Banner */}
+              {listing.hazardousMaterial && (
+                <div className="bg-amber-950/50 border border-amber-500/40 p-3 rounded-xl flex items-start gap-2.5 text-amber-200 text-xs">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="text-amber-100 block">Hazardous Industrial Material</strong>
+                    <span>{listing.hazardousReason || "Requires authorized hazardous waste handling, certified transport, and environmental compliance."}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Reusability */}
+              {listing.reusability && (
+                <div className="bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-700/50 flex items-center justify-between text-xs">
+                  <span className="text-emerald-300 font-bold uppercase tracking-wider text-[10px]">Reusability Potential:</span>
+                  <span className="font-bold text-white">{listing.reusability}</span>
+                </div>
+              )}
+
+              {/* Next Life Insights */}
               {listing.aiSuggestions?.whatCanIDoWithThis && (
                 <div className="bg-emerald-950/30 p-3.5 rounded-xl border border-emerald-700/40 text-xs leading-relaxed text-emerald-100">
                   <span className="text-emerald-300 font-bold block mb-1 flex items-center gap-1.5">
