@@ -18,8 +18,10 @@ import {
   AlertTriangle,
   ShieldCheck,
   AlertCircle,
-  Info
+  Info,
+  FileText
 } from "lucide-react";
+import { ToastContainer, ToastMessage } from "../components/common/Toast";
 import { useAuth } from "../hooks/useAuth";
 import { AuthView, WasteListing } from "../types";
 import {
@@ -42,11 +44,25 @@ export const SellPage: React.FC<SellPageProps> = ({
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'error', title?: string) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, message, type, title }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
 
   // Draft Data
   const [images, setImages] = useState<File[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>(initialListing?.images || []); 
   const [primaryImageIndex, setPrimaryImageIndex] = useState(0);
+  const [uploadMode, setUploadMode] = useState<'ai' | 'normal'>('ai');
   
   const [title, setTitle] = useState(initialListing?.title || "");
   const [category, setCategory] = useState(initialListing?.category || "");
@@ -212,11 +228,24 @@ export const SellPage: React.FC<SellPageProps> = ({
     else if (primaryImageIndex > index) setPrimaryImageIndex(prev => prev - 1);
   };
 
-  const triggerAIAnalysis = async () => {
+  const handleManualUpload = () => {
     if (images.length === 0 && imageUrls.length === 0) {
-      alert("Please upload an image first.");
+      showToast("Upload at least 1 image to proceed", "error");
       return;
     }
+    setValidationError(null);
+    setIsAnalyzing(false);
+    setCurrentStep(2);
+  };
+
+  const handleNormalUpload = handleManualUpload;
+
+  const triggerAIAnalysis = async () => {
+    if (images.length === 0 && imageUrls.length === 0) {
+      showToast("Upload at least 1 image to proceed", "error");
+      return;
+    }
+    const previousStep = currentStep;
     setIsAnalyzing(true);
     setValidationError(null);
     setCurrentStep(2); 
@@ -314,7 +343,7 @@ CRITICAL RULES:
         const reason = parsed.rejectionReason || "Human or invalid non-waste item detected in the image. Please upload a clear photo of waste, scrap, or recyclable materials.";
         setValidationError(reason);
         setIsAnalyzing(false);
-        setCurrentStep(1);
+        setCurrentStep(previousStep === 2 ? 2 : 1);
         return;
       }
 
@@ -350,7 +379,7 @@ CRITICAL RULES:
       console.error("AI Analysis failed:", err);
       const errMsg = err?.message || "AI Analysis failed. Please check your image or fill details manually.";
       setValidationError(errMsg);
-      setCurrentStep(1);
+      setCurrentStep(previousStep === 2 ? 2 : 1);
     } finally {
       setIsAnalyzing(false);
     }
@@ -394,15 +423,15 @@ CRITICAL RULES:
         ],
         ai_suggestions: {
           ...(aiSuggestions || {}),
-          wasteType,
-          isRecyclable,
-          recyclability,
+          wasteType: wasteType || category,
+          isRecyclable: isRecyclable ?? true,
+          recyclability: recyclability || (isRecyclable === false ? "Non-Recyclable" : "High recovery potential"),
           isHazardous: hazardousMaterial,
           hazardousReason,
           whatCanIDoWithThis: aiInsights,
         },
-        recyclability,
-        reusability,
+        recyclability: recyclability || (isRecyclable === false ? "Non-Recyclable" : "High recovery potential"),
+        reusability: reusability || "Direct Reuse",
         waste_category: wasteType || category,
         hazardous_material: hazardousMaterial,
         hazardousMaterial: hazardousMaterial,
@@ -475,7 +504,7 @@ CRITICAL RULES:
         </div>
         
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-2 overflow-x-auto no-scrollbar">
-          {['Upload', 'Analysis & Details', 'Pricing & Location', 'Review & Upload'].map((step, idx) => {
+          {['Upload', aiSuggestions ? 'AI Analysis & Details' : 'Item Details', 'Pricing & Location', 'Review & Upload'].map((step, idx) => {
             const stepNum = idx + 1;
             const isActive = currentStep === stepNum;
             const isPast = currentStep > stepNum;
@@ -519,7 +548,7 @@ CRITICAL RULES:
                   <p className="text-xs text-rose-800 mt-1 leading-relaxed">
                     {validationError}
                   </p>
-                  <div className="mt-2.5 flex items-center gap-2">
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => {
                         setValidationError(null);
@@ -529,6 +558,12 @@ CRITICAL RULES:
                     >
                       Upload Waste Image
                     </button>
+                    <button
+                      onClick={handleManualUpload}
+                      className="px-3 py-1.5 bg-white hover:bg-rose-100 text-rose-900 border border-rose-300 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                    >
+                      Proceed with Manual Entry Instead
+                    </button>
                   </div>
                 </div>
               </div>
@@ -536,12 +571,12 @@ CRITICAL RULES:
 
             <div className="text-center space-y-2 mb-6">
               <h2 className="text-2xl font-extrabold text-neutral-900">Upload Product Images</h2>
-              <p className="text-neutral-500 text-sm">Upload up to 8 high-quality images. AI will analyze the first image to help you fill the form.</p>
+              <p className="text-neutral-500 text-sm">Upload up to 8 high-quality images. You can choose to proceed with manual entry or let AI automatically analyze and categorize your item.</p>
             </div>
             
             <div 
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-emerald-200 bg-emerald-50/30 hover:bg-emerald-50/60 transition-colors rounded-3xl p-8 text-center cursor-pointer flex flex-col items-center justify-center min-h-[250px]"
+              className="border-2 border-dashed border-emerald-200 bg-emerald-50/30 hover:bg-emerald-50/60 transition-colors rounded-3xl p-8 text-center cursor-pointer flex flex-col items-center justify-center min-h-[220px]"
             >
               <div className="w-14 h-14 bg-white shadow-sm rounded-2xl flex items-center justify-center text-emerald-600 mb-3">
                 <ImageIcon className="w-6 h-6" />
@@ -577,14 +612,95 @@ CRITICAL RULES:
               </div>
             )}
 
-            <div className="flex justify-end pt-6 mt-auto">
-              <button
-                onClick={triggerAIAnalysis}
-                disabled={imageUrls.length === 0}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20 flex items-center gap-2 transition-all cursor-pointer text-sm"
+            {/* Upload Method Option Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+              <div
+                onClick={() => setUploadMode('ai')}
+                className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3 ${
+                  uploadMode === 'ai'
+                    ? 'border-emerald-600 bg-emerald-50/60 ring-1 ring-emerald-600/20 shadow-xs'
+                    : 'border-neutral-200 bg-white hover:border-neutral-300'
+                }`}
               >
-                Continue with AI Analysis <ArrowRight className="w-4 h-4" />
-              </button>
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  uploadMode === 'ai' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-neutral-100 text-neutral-600'
+                }`}>
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <h4 className="text-sm font-bold text-neutral-900">Upload with AI Analysis</h4>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      Smart
+                    </span>
+                  </div>
+                  <p className="text-xs text-neutral-500 leading-relaxed">
+                    AI inspects your photo to auto-detect category, material composition, recyclability grade, and pricing.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                onClick={() => setUploadMode('normal')}
+                className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3 ${
+                  uploadMode === 'normal'
+                    ? 'border-emerald-600 bg-emerald-50/60 ring-1 ring-emerald-600/20 shadow-xs'
+                    : 'border-neutral-200 bg-white hover:border-neutral-300'
+                }`}
+              >
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  uploadMode === 'normal' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-neutral-100 text-neutral-600'
+                }`}>
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <h4 className="text-sm font-bold text-neutral-900">Manual Listing Entry</h4>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600 border border-neutral-200">
+                      Self-Guided
+                    </span>
+                  </div>
+                  <p className="text-xs text-neutral-500 leading-relaxed">
+                    Skip automated AI scanning. Directly input material specifications, recyclability and condition.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 mt-auto">
+              <div className="text-xs text-neutral-500">
+                {imageUrls.length > 0 ? (
+                  <span><strong className="text-neutral-900">{imageUrls.length}</strong> {imageUrls.length === 1 ? 'image' : 'images'} selected</span>
+                ) : (
+                  <span>Upload at least 1 image to proceed</span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={handleManualUpload}
+                  className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-bold text-sm border flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    uploadMode === 'normal'
+                      ? 'bg-neutral-900 hover:bg-black text-white border-neutral-900 shadow-md'
+                      : 'bg-white hover:bg-neutral-50 text-neutral-700 border-neutral-300 shadow-xs'
+                  }`}
+                >
+                  <FileText className="w-4 h-4 text-neutral-500" /> Continue Manually
+                </button>
+
+                <button
+                  type="button"
+                  onClick={triggerAIAnalysis}
+                  className={`flex-1 sm:flex-initial px-6 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    uploadMode === 'ai'
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20'
+                      : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300'
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4" /> Upload with AI Analysis
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -607,6 +723,20 @@ CRITICAL RULES:
 
         {currentStep === 2 && !isAnalyzing && (
           <div className="flex-1 flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {validationError && (
+              <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between text-xs text-rose-800 shadow-xs">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{validationError}</span>
+                </div>
+                <button 
+                  onClick={() => setValidationError(null)} 
+                  className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
             <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
               
               {/* Left Column: Form */}
@@ -788,18 +918,45 @@ CRITICAL RULES:
                     <div className="flex items-center gap-1.5">
                       <Sparkles className="w-4 h-4 text-emerald-400" />
                       <h3 className="text-sm font-extrabold tracking-wide uppercase text-emerald-300">
-                        AI Waste Analysis
+                        {aiSuggestions ? "AI Waste Analysis" : "Waste Classification"}
                       </h3>
                     </div>
-                    {aiSuggestions && (
+                    {aiSuggestions ? (
                       <button 
                         onClick={clearAiSuggestions} 
                         className="text-[10px] bg-white/15 hover:bg-white/25 px-2 py-0.5 rounded-md text-emerald-100 transition-colors cursor-pointer"
                       >
                         Clear AI
                       </button>
+                    ) : (
+                      <button
+                        onClick={triggerAIAnalysis}
+                        disabled={isAnalyzing}
+                        className="text-[10px] bg-emerald-400/20 hover:bg-emerald-400/30 border border-emerald-400/40 px-2 py-0.5 rounded-md text-emerald-200 transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <Sparkles className="w-3 h-3" /> Run AI
+                      </button>
                     )}
                   </div>
+
+                  {/* If normal upload without AI suggestions, show clean banner */}
+                  {!aiSuggestions && (
+                    <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/15 mb-3">
+                      <div className="text-[10px] uppercase font-bold tracking-wider text-emerald-300 mb-1 flex items-center gap-1.5">
+                        <Info className="w-3 h-3 text-emerald-400" /> Standard Manual Mode
+                      </div>
+                      <p className="text-[11px] text-emerald-100/90 leading-relaxed mb-2.5">
+                        AI auto-analysis was skipped. You can configure recyclability and classification manually, or run an AI scan.
+                      </p>
+                      <button
+                        onClick={triggerAIAnalysis}
+                        disabled={isAnalyzing}
+                        className="w-full py-1.5 px-2.5 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold text-xs rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-neutral-950" /> Run AI Analysis on Image
+                      </button>
+                    </div>
+                  )}
 
                   {/* Waste Classification Badge */}
                   <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/15 mb-3.5">
@@ -820,22 +977,53 @@ CRITICAL RULES:
                   <div className="grid grid-cols-2 gap-2.5 mb-3.5">
                     {/* Recyclable Card */}
                     <div className="bg-emerald-950/60 p-2.5 rounded-xl border border-emerald-700/60 flex flex-col justify-between">
-                      <div className="text-[9px] font-bold uppercase tracking-wider text-emerald-300 mb-1">
-                        Recyclable Status
+                      <div className="text-[9px] font-bold uppercase tracking-wider text-emerald-300 mb-1 flex items-center justify-between">
+                        <span>Recyclable Status</span>
                       </div>
                       <div className="flex items-center gap-1.5 my-0.5">
-                        {isRecyclable === false ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                            <X className="w-3 h-3 text-rose-400" /> Non-Recyclable
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
-                            <Recycle className="w-3 h-3 text-emerald-400" /> Recyclable
-                          </span>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = isRecyclable === false ? true : false;
+                            setIsRecyclable(next);
+                            if (next) {
+                              setRecyclability("High recovery potential");
+                            } else {
+                              setRecyclability("Non-Recyclable");
+                            }
+                          }}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold cursor-pointer transition-all ${
+                            isRecyclable === false
+                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30'
+                              : 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 hover:bg-emerald-500/30'
+                          }`}
+                          title="Click to toggle recyclable status"
+                        >
+                          {isRecyclable === false ? (
+                            <><X className="w-3 h-3 text-rose-400" /> Non-Recyclable</>
+                          ) : (
+                            <><Recycle className="w-3 h-3 text-emerald-400" /> Recyclable</>
+                          )}
+                        </button>
                       </div>
-                      <div className="text-[10px] text-emerald-100 line-clamp-2 mt-1">
-                        {recyclability || "High recovery potential"}
+                      <div className="mt-1">
+                        <select
+                          value={recyclability || (isRecyclable === false ? "Non-Recyclable" : "High recovery potential")}
+                          onChange={(e) => {
+                            setRecyclability(e.target.value);
+                            if (e.target.value === "Non-Recyclable") {
+                              setIsRecyclable(false);
+                            } else {
+                              setIsRecyclable(true);
+                            }
+                          }}
+                          className="w-full text-[10px] bg-emerald-900/80 text-emerald-100 border border-emerald-700/80 rounded px-1.5 py-1 outline-none cursor-pointer"
+                        >
+                          <option value="High recovery potential">High recovery potential</option>
+                          <option value="Medium recovery potential">Medium recovery potential</option>
+                          <option value="Low recovery potential">Low recovery potential</option>
+                          <option value="Non-Recyclable">Non-Recyclable</option>
+                        </select>
                       </div>
                     </div>
 
@@ -845,15 +1033,27 @@ CRITICAL RULES:
                         Hazard Assessment
                       </div>
                       <div className="flex items-center gap-1.5 my-0.5">
-                        {hazardousMaterial ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-400/40">
-                            <AlertTriangle className="w-3 h-3 text-amber-400" /> Hazardous
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
-                            <ShieldCheck className="w-3 h-3 text-emerald-400" /> Non-Hazardous
-                          </span>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = !hazardousMaterial;
+                            setHazardousMaterial(next);
+                            setFieldOrigins(p => ({ ...p, hazardous: 'seller' }));
+                            if (!next) setHazardousReason("");
+                          }}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold cursor-pointer transition-all ${
+                            hazardousMaterial
+                              ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40 hover:bg-amber-500/30'
+                              : 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 hover:bg-emerald-500/30'
+                          }`}
+                          title="Click to toggle hazard status"
+                        >
+                          {hazardousMaterial ? (
+                            <><AlertTriangle className="w-3 h-3 text-amber-400" /> Hazardous</>
+                          ) : (
+                            <><ShieldCheck className="w-3 h-3 text-emerald-400" /> Non-Hazardous</>
+                          )}
+                        </button>
                       </div>
                       <div className="text-[10px] text-emerald-100 line-clamp-2 mt-1">
                         {hazardousReason || (hazardousMaterial ? "Special handling needed" : "Safe inert material")}
@@ -863,24 +1063,51 @@ CRITICAL RULES:
 
                   {/* Second Life & Insights */}
                   <div className="bg-emerald-950/40 rounded-xl p-3 border border-emerald-700/40 flex-1 flex flex-col min-h-0 mb-3 overflow-hidden">
-                    <div className="text-[10px] uppercase font-bold tracking-wider text-emerald-300 mb-1.5 flex items-center gap-1.5">
-                      <Recycle className="w-3.5 h-3.5 text-emerald-400" /> Applications & Next Life
+                    <div className="text-[10px] uppercase font-bold tracking-wider text-emerald-300 mb-1.5 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Recycle className="w-3.5 h-3.5 text-emerald-400" /> Circular Second-Life
+                      </span>
                     </div>
-                    <div className="text-emerald-50 text-xs leading-relaxed whitespace-pre-line font-medium overflow-y-auto pr-1 flex-1">
-                      {aiInsights || "AI extracted material properties. This item can be traded and processed in circular industrial loops."}
-                    </div>
+                    {aiSuggestions ? (
+                      <div className="text-emerald-50 text-xs leading-relaxed whitespace-pre-line font-medium overflow-y-auto pr-1 flex-1">
+                        {aiInsights || "AI extracted material properties. This item can be traded and processed in circular industrial loops."}
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex flex-col">
+                        <textarea
+                          value={aiInsights}
+                          onChange={(e) => setAiInsights(e.target.value)}
+                          placeholder="Add circular reuse notes or processing recommendations..."
+                          className="w-full flex-1 bg-emerald-900/60 border border-emerald-700/60 rounded-lg p-2 text-xs text-white placeholder-emerald-300/60 outline-none resize-none"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Footer Meta: Reusability & Rate */}
                   <div className="grid grid-cols-2 gap-2 pt-2.5 border-t border-emerald-700/50 mt-auto text-xs">
                     <div>
-                      <div className="text-emerald-300 text-[9px] font-bold uppercase tracking-wider">Reusability</div>
-                      <div className="font-bold text-white text-xs">{reusability || "Direct Reuse"}</div>
+                      <div className="text-emerald-300 text-[9px] font-bold uppercase tracking-wider mb-1">Reusability</div>
+                      <select
+                        value={reusability || "Direct Reuse"}
+                        onChange={(e) => setReusability(e.target.value)}
+                        className="w-full text-[10px] bg-emerald-900/80 text-white font-bold border border-emerald-700/80 rounded px-1.5 py-1 outline-none cursor-pointer"
+                      >
+                        <option value="Direct Reuse">Direct Reuse</option>
+                        <option value="High">High Reusability</option>
+                        <option value="Medium">Medium Reusability</option>
+                        <option value="Low">Low Reusability</option>
+                      </select>
                     </div>
-                    {aiSuggestions?.suggestedPriceRange && (
+                    {aiSuggestions?.suggestedPriceRange ? (
                       <div>
                         <div className="text-emerald-300 text-[9px] font-bold uppercase tracking-wider">Est. Market Rate</div>
                         <div className="font-extrabold text-white text-xs">{aiSuggestions.suggestedPriceRange}</div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="text-emerald-300 text-[9px] font-bold uppercase tracking-wider">Listing Mode</div>
+                        <div className="font-semibold text-emerald-200 text-xs">Manual Entry</div>
                       </div>
                     )}
                   </div>
@@ -1102,6 +1329,7 @@ CRITICAL RULES:
         )}
       </main>
 
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 };

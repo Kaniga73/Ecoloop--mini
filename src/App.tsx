@@ -84,7 +84,7 @@ function MainAuthApp() {
   // Authenticated app shell — rendered full-bleed, NOT wrapped in AuthLayout
   // (AuthLayout centers/caps its children for login-style cards, which
   // would otherwise box in the full marketplace page)
-  if (isAuthenticated && (currentView === 'home' || currentView === 'sell')) {
+  if ((isAuthenticated && currentView === 'home') || currentView === 'sell') {
     return (
       <>
         {currentView === 'home' && (

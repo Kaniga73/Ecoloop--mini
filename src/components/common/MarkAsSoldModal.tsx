@@ -20,7 +20,6 @@ const defaultInterestedBuyers: PartyDetails[] = [
     name: "Karthik Sundaram (Buyer A)",
     company: "TN Metal & Polymer Recyclers Pvt Ltd",
     email: "karthik@tnrecyclers.in",
-    phone: "+91 98401 23456",
     location: "Guindy Industrial Estate, Chennai",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
   },
@@ -29,7 +28,6 @@ const defaultInterestedBuyers: PartyDetails[] = [
     name: "Rajesh Sharma (Buyer B)",
     company: "Kovai Smelters & Refineries Ltd",
     email: "rajesh@kovaismelters.com",
-    phone: "+91 94432 10987",
     location: "SIDCO Industrial Estate, Coimbatore",
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
   },
@@ -38,7 +36,6 @@ const defaultInterestedBuyers: PartyDetails[] = [
     name: "Deepak Patel (Buyer C)",
     company: "Apex Metal Trading Corp",
     email: "deepak@apexmetals.in",
-    phone: "+91 98940 55432",
     location: "Ranipet Industrial Area, Ranipet",
     avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
   },
@@ -95,7 +92,6 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({
         name: customName || "Direct Buyer",
         company: customCompany || "Independent Buyer Org",
         email: customEmail || "buyer@ecoloop.in",
-        phone: customPhone || "+91 98400 00000",
         location: customLocation || "Tamil Nadu, India",
       };
     }
@@ -251,7 +247,7 @@ export const MarkAsSoldModal: React.FC<MarkAsSoldModalProps> = ({
                 <span className="font-bold text-neutral-900">{getActiveBuyer().name}</span>
                 <span className="text-neutral-600 block">{getActiveBuyer().company}</span>
                 <span className="text-neutral-500 block text-[11px] mt-0.5">
-                  {getActiveBuyer().email} • {getActiveBuyer().phone}
+                  {getActiveBuyer().email}
                 </span>
               </div>
             </div>
