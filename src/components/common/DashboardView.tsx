@@ -204,7 +204,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       email: "venkatesh@hosurconductors.com",
       phone: "+91 98840 98765",
       location: "SIPCOT Phase II, Hosur, Tamil Nadu",
-      avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
     };
 
     const buyer: PartyDetails = p.buyer || {
@@ -213,7 +212,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       email: currentUser.email || "karthik@tnrecyclers.in",
       phone: (currentUser as any).phone || "+91 98401 23456",
       location: currentUser.location || "Guindy Industrial Estate, Chennai",
-      avatar: currentUser.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
     };
 
     setSelectedDetail({

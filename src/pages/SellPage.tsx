@@ -233,6 +233,7 @@ export const SellPage: React.FC<SellPageProps> = ({
       showToast("Upload at least 1 image to proceed", "error");
       return;
     }
+    setUploadMode('normal');
     setValidationError(null);
     setIsAnalyzing(false);
     setCurrentStep(2);
@@ -525,7 +526,7 @@ CRITICAL RULES:
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-4 h-[calc(100vh-140px)] flex flex-col">
+      <main className="max-w-6xl mx-auto px-4 py-4 min-h-[calc(100vh-140px)] flex flex-col">
         {currentStep === 1 && (
           <div className="flex-1 flex flex-col justify-center max-w-3xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
             {validationError && (
@@ -737,10 +738,12 @@ CRITICAL RULES:
                 </button>
               </div>
             )}
-            <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
+            <div className="flex flex-col lg:flex-row gap-6 flex-1">
               
               {/* Left Column: Form */}
-              <div className="flex-1 bg-white rounded-2xl p-5 shadow-xs border border-neutral-200 overflow-hidden">
+              <div className={`bg-white rounded-2xl p-5 md:p-6 shadow-xs border border-neutral-200 flex flex-col ${
+                uploadMode === 'ai' ? 'flex-1' : 'w-full max-w-3xl mx-auto'
+              }`}>
                 <h2 className="text-lg font-bold text-neutral-900 mb-4">Item Details</h2>
                 
                 <div className="space-y-4">
@@ -859,7 +862,7 @@ CRITICAL RULES:
                   </div>
 
                   {/* Row 6: Hazardous Waste Classification */}
-                  <div className={`p-3.5 rounded-xl border transition-all ${hazardousMaterial ? 'bg-rose-50/80 border-rose-200 shadow-xs' : 'bg-neutral-50 border-neutral-200'}`}>
+                  <div className={`p-4 rounded-xl border transition-all ${hazardousMaterial ? 'bg-rose-50/80 border-rose-200 shadow-xs' : 'bg-neutral-50 border-neutral-200'}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${hazardousMaterial ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-700'}`}>
@@ -894,13 +897,16 @@ CRITICAL RULES:
                     </div>
 
                     {hazardousMaterial && (
-                      <div className="mt-2.5 pt-2.5 border-t border-rose-200/70">
+                      <div className="mt-3.5 pt-3.5 border-t border-rose-200/80 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <label className="block text-xs font-semibold text-rose-900 mb-1.5">
+                          Hazard Details & Precautions <span className="text-rose-600">*</span>
+                        </label>
                         <input
                           type="text"
                           value={hazardousReason}
                           onChange={(e) => setHazardousReason(e.target.value)}
                           placeholder="Hazard details (e.g., Flammable solvent, Toxic residue, Corrosive acid)"
-                          className="w-full px-3 py-1.5 bg-white border border-rose-200 rounded-lg text-xs text-neutral-900 focus:ring-1 focus:ring-rose-500 outline-none"
+                          className="w-full px-3 py-2 bg-white border border-rose-200 rounded-lg text-sm text-neutral-900 placeholder-neutral-400 focus:bg-white focus:border-rose-400 focus:ring-1 focus:ring-rose-400 outline-none transition-all shadow-2xs"
                         />
                       </div>
                     )}
@@ -908,7 +914,8 @@ CRITICAL RULES:
                 </div>
               </div>
 
-              {/* Right Column: AI Insights & Classification Details */}
+              {/* Right Column: Classification Details */}
+              {uploadMode === 'ai' && (
               <div className="lg:w-88 shrink-0 bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-800 rounded-2xl p-5 shadow-xl text-white relative overflow-hidden flex flex-col">
                 <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/20 blur-3xl rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none" />
                 <div className="relative z-10 flex-1 flex flex-col min-h-0">
@@ -916,7 +923,11 @@ CRITICAL RULES:
                   {/* Header */}
                   <div className="flex justify-between items-center mb-3">
                     <div className="flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-emerald-400" />
+                      {aiSuggestions ? (
+                        <Sparkles className="w-4 h-4 text-emerald-400" />
+                      ) : (
+                        <Recycle className="w-4 h-4 text-emerald-400" />
+                      )}
                       <h3 className="text-sm font-extrabold tracking-wide uppercase text-emerald-300">
                         {aiSuggestions ? "AI Waste Analysis" : "Waste Classification"}
                       </h3>
@@ -928,7 +939,7 @@ CRITICAL RULES:
                       >
                         Clear AI
                       </button>
-                    ) : (
+                    ) : uploadMode === 'ai' ? (
                       <button
                         onClick={triggerAIAnalysis}
                         disabled={isAnalyzing}
@@ -936,27 +947,8 @@ CRITICAL RULES:
                       >
                         <Sparkles className="w-3 h-3" /> Run AI
                       </button>
-                    )}
+                    ) : null}
                   </div>
-
-                  {/* If normal upload without AI suggestions, show clean banner */}
-                  {!aiSuggestions && (
-                    <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/15 mb-3">
-                      <div className="text-[10px] uppercase font-bold tracking-wider text-emerald-300 mb-1 flex items-center gap-1.5">
-                        <Info className="w-3 h-3 text-emerald-400" /> Standard Manual Mode
-                      </div>
-                      <p className="text-[11px] text-emerald-100/90 leading-relaxed mb-2.5">
-                        AI auto-analysis was skipped. You can configure recyclability and classification manually, or run an AI scan.
-                      </p>
-                      <button
-                        onClick={triggerAIAnalysis}
-                        disabled={isAnalyzing}
-                        className="w-full py-1.5 px-2.5 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold text-xs rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-neutral-950" /> Run AI Analysis on Image
-                      </button>
-                    </div>
-                  )}
 
                   {/* Waste Classification Badge */}
                   <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/15 mb-3.5">
@@ -1114,10 +1106,11 @@ CRITICAL RULES:
 
                 </div>
               </div>
+              )}
 
             </div>
             
-            <div className="flex justify-between pt-4 mt-auto">
+            <div className="flex justify-between pt-6 mt-auto">
               <button onClick={() => setCurrentStep(1)} className="px-5 py-2.5 font-semibold text-neutral-600 hover:bg-neutral-100 rounded-xl transition-colors cursor-pointer text-sm">Back</button>
               <button onClick={() => setCurrentStep(3)} className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg transition-all cursor-pointer text-sm">Next Step</button>
             </div>
@@ -1126,7 +1119,7 @@ CRITICAL RULES:
 
         {currentStep === 3 && (
           <div className="flex-1 flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-white rounded-2xl p-6 shadow-xs border border-neutral-200 flex-1 overflow-hidden">
+            <div className="bg-white rounded-2xl p-6 shadow-xs border border-neutral-200 flex-1">
               
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
                 {/* Left Side: Pricing & Deadline */}
