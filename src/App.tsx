@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Component, ReactNode } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthView } from './types';
 import { AuthLayout } from './components/auth/AuthLayout';
@@ -11,6 +11,37 @@ import { LandingPage } from './pages/LandingPage';
 import { SellPage } from './pages/SellPage.tsx';
 import { ToastContainer, ToastMessage } from './components/common/Toast';
 import { AnimatePresence } from 'motion/react';
+import { CommunicationProvider } from './context/CommunicationContext';
+import { chatService } from './lib/chatService';
+
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  error: Error | null;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState = { error: null };
+  public props!: ErrorBoundaryProps;
+
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+  }
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{padding: '20px', color: 'red', fontFamily: 'monospace'}}>
+          <h2>Something went wrong.</h2>
+          <pre style={{whiteSpace: 'pre-wrap'}}>{this.state.error.stack}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function getInitialView(): AuthView {
   const path = window.location.pathname.replace(/^\/+/, '');
@@ -67,6 +98,28 @@ function MainAuthApp() {
       }
     }
   }, [isAuthenticated, currentView, handleNavigate]);
+
+  // Auto-sync offline queue when internet connection is restored or user authenticates
+  useEffect(() => {
+    const handleOnline = () => {
+      if (isAuthenticated) {
+        chatService.syncOfflineQueue().then(() => {
+          if (chatService.getOfflineQueue().length === 0) {
+            console.log("Sync complete");
+          }
+        }).catch(console.error);
+      }
+    };
+    
+    window.addEventListener('online', handleOnline);
+    
+    // Also try syncing immediately if authenticated and online
+    if (isAuthenticated && navigator.onLine) {
+      chatService.syncOfflineQueue().catch(console.error);
+    }
+    
+    return () => window.removeEventListener('online', handleOnline);
+  }, [isAuthenticated]);
 
   if (loading) {
     return (
@@ -158,8 +211,12 @@ function MainAuthApp() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <MainAuthApp />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <CommunicationProvider>
+          <MainAuthApp />
+        </CommunicationProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

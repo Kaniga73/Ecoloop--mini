@@ -29,17 +29,21 @@ export const MakeOfferModal: React.FC<MakeOfferModalProps> = ({
   const [quantity, setQuantity] = useState<number>(minQty);
   const [offerPrice, setOfferPrice] = useState<number>(listing.pricePerUnit);
   const [notes, setNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const totalAmount = quantity * offerPrice;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (quantity > maxAvailableQty) {
       alert(`Cannot order more than available remaining quantity (${maxAvailableQty} ${listing.unit}s)`);
       return;
     }
+    setIsSubmitting(true);
     onSubmitOffer(listing, quantity, offerPrice, notes);
     onClose();
+    setTimeout(() => setIsSubmitting(false), 1000);
   };
 
   return (

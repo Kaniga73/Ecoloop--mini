@@ -1,16 +1,17 @@
 import React from "react";
-import { Search, Bell, Plus, Recycle, ShieldCheck, UserCheck, LogOut, User } from "lucide-react";
+import { Search, Bell, Plus, Recycle, ShieldCheck, UserCheck, LogOut, User, MessageSquare } from "lucide-react";
 import { UserProfile } from "../../types";
 
 interface HeaderProps {
-  activeTab: "marketplace" | "dashboard" | "messages" | "list-waste";
-  setActiveTab: (tab: "marketplace" | "dashboard" | "messages" | "list-waste") => void;
+  activeTab: "marketplace" | "dashboard" | "messages" | "list-waste" | "notifications";
+  setActiveTab: (tab: "marketplace" | "dashboard" | "messages" | "list-waste" | "notifications") => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   onNavigateToSell?: () => void;
   currentUser: UserProfile;
   onSwitchUser: () => void;
-  unreadCount: number;
+  unreadMessageCount: number;
+  unreadNotificationCount: number;
   onLogout?: () => void;
 }
 
@@ -22,7 +23,8 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateToSell,
   currentUser,
   onSwitchUser,
-  unreadCount,
+  unreadMessageCount,
+  unreadNotificationCount,
   onLogout,
 }) => {
   return (
@@ -107,15 +109,30 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Sell</span>
             </button>
 
+            {/* Messages */}
+            <button
+              id="top-messages-btn"
+              onClick={() => setActiveTab("messages")}
+              className={`p-2 rounded-lg relative transition-colors focus:outline-none ${activeTab === 'messages' ? 'text-emerald-700 bg-emerald-50' : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100'}`}
+              title="Messages"
+            >
+              <MessageSquare className="w-5 h-5" />
+              {unreadMessageCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-orange-500 rounded-full ring-2 ring-white animate-pulse"></span>
+              )}
+            </button>
+
             {/* Notifications */}
             <button
               id="top-notifications-btn"
-              onClick={() => setActiveTab("messages")}
-              className="p-2 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg relative transition-colors focus:outline-none"
+              onClick={() => setActiveTab("notifications")}
+              className={`p-2 rounded-lg relative transition-colors focus:outline-none ${activeTab === 'notifications' ? 'text-emerald-700 bg-emerald-50' : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100'}`}
               title="Notifications"
             >
               <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white"></span>
+              {unreadNotificationCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white"></span>
+              )}
             </button>
 
             {/* Profile / Role Switcher */}
@@ -187,6 +204,16 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             Messages
+            {unreadMessageCount > 0 && <span className="absolute top-0 right-1 w-2.5 h-2.5 bg-orange-500 rounded-full ring-1 ring-white"></span>}
+          </button>
+          <button
+            onClick={() => setActiveTab("notifications")}
+            className={`text-xs font-medium py-1 px-3 rounded-full relative ${
+              activeTab === "notifications" ? "bg-emerald-100 text-emerald-800" : "text-neutral-600"
+            }`}
+          >
+            Alerts
+            {unreadNotificationCount > 0 && <span className="absolute top-0 right-1 w-2 h-2 bg-rose-500 rounded-full ring-1 ring-white"></span>}
           </button>
         </div>
       </div>

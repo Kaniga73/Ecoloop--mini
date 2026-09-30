@@ -2,8 +2,8 @@ import React from "react";
 import { MapPin, Filter, RotateCcw } from "lucide-react";
 
 interface SidebarFilterProps {
-  selectedCategory: string;
-  onSelectCategory: (cat: string) => void;
+  selectedCategories: string[];
+  onToggleCategory: (cat: string) => void;
   locationQuery: string;
   onLocationChange: (loc: string) => void;
   minPrice: string;
@@ -32,8 +32,8 @@ const CATEGORIES: { id: string; label: string }[] = [
 const TN_CITIES = ["Chennai", "Coimbatore", "Tiruppur", "Salem", "Hosur", "Madurai", "Ranipet"];
 
 export const SidebarFilter: React.FC<SidebarFilterProps> = ({
-  selectedCategory,
-  onSelectCategory,
+  selectedCategories,
+  onToggleCategory,
   locationQuery,
   onLocationChange,
   minPrice,
@@ -65,12 +65,22 @@ export const SidebarFilter: React.FC<SidebarFilterProps> = ({
         </button>
       </div>
 
-      {/* Categories Checkbox/Radio List */}
+      {/* Categories Multi-Select Checkbox List */}
       <div>
-        <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2.5">Category</h4>
+        <div className="flex items-center justify-between mb-2.5">
+          <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Categories</h4>
+          {selectedCategories.length > 0 && !selectedCategories.includes("All Categories") && (
+            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+              {selectedCategories.length} selected
+            </span>
+          )}
+        </div>
         <div className="space-y-1">
           {CATEGORIES.map((cat) => {
-            const isSelected = selectedCategory === cat.id;
+            const isSelected = cat.id === "All Categories"
+              ? selectedCategories.length === 0 || selectedCategories.includes("All Categories")
+              : selectedCategories.includes(cat.id);
+
             return (
               <label
                 key={cat.id}
@@ -84,7 +94,7 @@ export const SidebarFilter: React.FC<SidebarFilterProps> = ({
                 <input
                   type="checkbox"
                   checked={isSelected}
-                  onChange={() => onSelectCategory(cat.id)}
+                  onChange={() => onToggleCategory(cat.id)}
                   className="w-3.5 h-3.5 rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500 transition-colors cursor-pointer"
                 />
                 <span className="flex-1 truncate">{cat.label}</span>

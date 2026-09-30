@@ -1,6 +1,6 @@
 import React from "react";
-import { MapPin, Heart, ArrowUpRight, Package, MessageSquare } from "lucide-react";
-import { WasteListing } from "../../types";
+import { MapPin, Heart, ArrowUpRight, Package, MessageSquare, User } from "lucide-react";
+import { WasteListing, UserProfile } from "../../types";
 
 interface ListingCardProps {
   listing: WasteListing;
@@ -9,6 +9,7 @@ interface ListingCardProps {
   onToggleFavorite: (id: string, e: React.MouseEvent) => void;
   onStartChat?: (listing: WasteListing, e: React.MouseEvent) => void;
   featured?: boolean;
+  currentUser?: UserProfile;
 }
 
 export const ListingCard: React.FC<ListingCardProps> = ({
@@ -17,7 +18,10 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   isFavorite,
   onToggleFavorite,
   onStartChat,
+  currentUser,
 }) => {
+  const isOwner = currentUser?.id === listing.seller.id || currentUser?.email === listing.seller.contactEmail;
+
   return (
     <div
       id={`listing-card-${listing.id}`}
@@ -72,6 +76,11 @@ export const ListingCard: React.FC<ListingCardProps> = ({
                 Hazardous
               </span>
             )}
+            {isOwner && (
+              <span className="bg-blue-50 text-blue-700 font-bold px-1.5 py-0.5 rounded border border-blue-200 text-[10px] flex items-center gap-1">
+                <User className="w-3 h-3" /> Yours
+              </span>
+            )}
             <span className="flex items-center gap-1 text-neutral-600">
               <MapPin className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
               <span className="line-clamp-1">{listing.location.city}, {listing.location.stateOrCountry}</span>
@@ -97,7 +106,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5">
-            {onStartChat && (
+            {!isOwner && onStartChat && (
               <button
                 id={`chat-btn-${listing.id}`}
                 onClick={(e) => {

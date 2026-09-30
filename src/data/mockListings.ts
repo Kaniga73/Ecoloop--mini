@@ -11,7 +11,7 @@ export const currentUserProfiles: UserProfile[] = [
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
   },
   {
-    id: "user-seller-1",
+    id: "seller-1",
     name: "Senthil Nathan",
     company: "Ambattur Engineering Fabricators",
     role: "seller",

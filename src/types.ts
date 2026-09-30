@@ -114,7 +114,8 @@ export type AuthView =
   | 'forgot-password'
   | 'reset-password'
   | 'home'
-  | 'sell';
+  | 'sell'
+  | 'notifications';
 
 export interface WasteListingLocation {
   city: string;
@@ -259,12 +260,16 @@ export interface ChatMessage {
 
 export interface DealOffer {
   id: string;
+  conversationId: string;
   listingId: string;
   listingTitle: string;
   buyerId: string;
   buyerName: string;
   sellerId: string;
   sellerName: string;
+  senderId?: string;
+  isCounter?: boolean;
+  isHandoverCompleted?: boolean;
   offeredPricePerUnit: number;
   quantity: number;
   unit: string;
@@ -276,3 +281,13 @@ export interface DealOffer {
   notes?: string;
 }
 
+export interface AppNotification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  type: 'system' | 'offer' | 'alert' | 'info';
+  createdAt: string;
+  link?: string;
+}

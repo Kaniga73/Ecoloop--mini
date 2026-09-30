@@ -29,6 +29,7 @@ interface ListingDetailPageProps {
   onBack: () => void;
   onStartChat: (listing: WasteListing) => void;
   onOpenMakeOffer: (listing: WasteListing) => void;
+  onOpenBuyModal?: (listing: WasteListing) => void;
   isFavorite: boolean;
   onToggleFavorite: (id: string) => void;
   currentUser: UserProfile;
@@ -39,8 +40,10 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({
   onBack,
   onStartChat,
   onOpenMakeOffer,
+  onOpenBuyModal,
   isFavorite,
   onToggleFavorite,
+  currentUser,
 }) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -63,7 +66,7 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({
   const remainingQty = listing.remainingQuantity !== undefined ? listing.remainingQuantity : listing.totalQuantity;
 
   return (
-    <div id="listing-detail-page" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-in fade-in duration-200">
+    <div id="listing-detail-page" className="w-full max-w-[1700px] mx-auto px-3 sm:px-6 py-4 space-y-4 animate-in fade-in duration-200">
       {/* Top Navigation & Breadcrumb */}
       <div className="flex items-center justify-between gap-4 pb-4 border-b border-neutral-200">
         <button
@@ -386,31 +389,54 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({
             </div>
 
             {/* Action Buttons */}
-            <div className="space-y-3">
-              <button
-                id="detail-page-chat-seller-btn"
-                onClick={() => onStartChat(listing)}
-                className="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl font-bold text-sm shadow-xs transition-all flex items-center justify-center gap-2 focus:outline-none cursor-pointer"
-              >
-                <MessageSquare className="w-4 h-4" />
-                <span>Chat with Seller</span>
-              </button>
+            {listing.seller.id !== currentUser.id ? (
+              <div className="space-y-3">
+                {(listing.status === "sold" || (remainingQty <= 0)) ? (
+                  <div className="w-full py-3.5 px-4 bg-rose-100 border border-rose-200 text-rose-800 rounded-xl font-bold text-sm text-center">
+                    COMPLETELY SOLD OUT
+                  </div>
+                ) : (
+                  <>
+                    {/* Primary Instant Buy Action */}
+                    <button
+                      id="detail-page-buy-now-btn"
+                      onClick={() => onOpenBuyModal ? onOpenBuyModal(listing) : onOpenMakeOffer(listing)}
+                      className="w-full py-3.5 px-4 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 focus:outline-none cursor-pointer"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Buy Now ({listing.currency}{listing.pricePerUnit.toLocaleString("en-IN")} / {listing.unit})</span>
+                    </button>
 
-              {(listing.status === "sold" || (remainingQty <= 0)) ? (
-                <div className="w-full py-3.5 px-4 bg-rose-100 border border-rose-200 text-rose-800 rounded-xl font-bold text-sm text-center">
-                  COMPLETELY SOLD OUT
-                </div>
-              ) : (
+                    {/* Secondary Make Offer Action */}
+                    <button
+                      id="detail-page-make-offer-btn"
+                      onClick={() => onOpenMakeOffer(listing)}
+                      className="w-full py-3 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 focus:outline-none cursor-pointer"
+                    >
+                      <DollarSign className="w-4 h-4 text-emerald-700" />
+                      <span>Make an Offer</span>
+                    </button>
+                  </>
+                )}
+
+                {/* Tertiary Direct Chat */}
                 <button
-                  id="detail-page-make-offer-btn"
-                  onClick={() => onOpenMakeOffer(listing)}
-                  className="w-full py-3.5 px-4 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white rounded-xl font-bold text-sm shadow-xs transition-all flex items-center justify-center gap-2 focus:outline-none cursor-pointer"
+                  id="detail-page-chat-seller-btn"
+                  onClick={() => onStartChat(listing)}
+                  className="w-full py-3 px-4 bg-white hover:bg-neutral-50 active:bg-neutral-100 text-neutral-700 border border-neutral-200 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 focus:outline-none cursor-pointer"
                 >
-                  <DollarSign className="w-4 h-4" />
-                  <span>Make an Offer</span>
+                  <MessageSquare className="w-4 h-4 text-neutral-500" />
+                  <span>Chat with Seller</span>
                 </button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="w-full py-3.5 px-4 bg-neutral-100 border border-neutral-200 text-neutral-600 rounded-xl font-bold text-sm text-center flex items-center justify-center gap-2">
+                  <Package className="w-4 h-4 text-neutral-500" />
+                  <span>This is your listing (Managing as Seller)</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Seller Profile Summary */}
@@ -428,8 +454,10 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="font-bold text-neutral-900 text-sm truncate">{listing.seller.company || listing.seller.name}</div>
-                  <div className="text-xs text-neutral-500 truncate">{listing.seller.name}</div>
+                  <div className="font-bold text-neutral-900 text-sm truncate">{listing.seller.name}</div>
+                  {listing.seller.company && listing.seller.company !== listing.seller.name && (
+                    <div className="text-xs text-neutral-500 truncate">{listing.seller.company}</div>
+                  )}
                   {listing.seller.location && (
                     <div className="text-[11px] text-neutral-400 truncate mt-0.5">{listing.seller.location}</div>
                   )}

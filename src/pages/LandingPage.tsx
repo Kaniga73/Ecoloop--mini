@@ -6,14 +6,18 @@ import { ListingDetailPage } from "./ListingDetailPage";
 import { DashboardPage } from "./DashboardPage";
 import { ListWasteModal } from "../components/common/ListWasteModal";
 import { MakeOfferModal } from "../components/common/MakeOfferModal";
+import { InstantBuyModal } from "../components/common/InstantBuyModal";
 import { SellPage } from "./SellPage";
 import { MessagesPage } from "./MessagesPage";
+import { NotificationsPage } from "./NotificationsPage";
 import { PurchaseRecord } from "../components/common/DashboardView";
 import { currentUserProfiles, initialConversations, initialMessages, initialDealOffers } from "../data/mockListings";
 import { WasteListing, UserProfile, AuthView, PartyDetails, Conversation, ChatMessage, DealOffer } from "../types";
 import { useAuth } from "../hooks/useAuth";
+import { useCommunication } from "../context/CommunicationContext";
 import { Search } from "lucide-react";
-import { fetchActiveListings, deleteWasteListing, updateWasteListing } from "../lib/listingsService";
+import { fetchActiveListings, deleteWasteListing, updateWasteListing, toUUID, savePurchaseRecord, getStoredPurchases } from "../lib/listingsService";
+import { supabase, isLiveSupabaseConfigured } from "../lib/supabase";
 
 interface LandingPageProps {
   onLogoutToast?: (msg: string) => void;
@@ -29,17 +33,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   isLoadingListings = false,
 }) => {
   const { logout, profile, user } = useAuth();
+  const { 
+    unreadMessageCount, 
+    unreadNotificationCount, 
+    startConversation, 
+    setActiveConversationId,
+    sendMessage,
+    sendOffer,
+    acceptOffer,
+    rejectOffer,
+    deleteConversation
+  } = useCommunication();
 
-  // State management — purchases start empty [] by default until buyer purchases real items
+  // State management — purchases loaded from storage / real purchases
   const [allListings, setAllListings] = useState<WasteListing[]>(propListings || []);
-  const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
+  const [purchases, setPurchases] = useState<PurchaseRecord[]>(() => {
+    try {
+      return getStoredPurchases() || [];
+    } catch {
+      return [];
+    }
+  });
   const [isLoading, setIsLoading] = useState<boolean>(isLoadingListings);
-
-  // Chat & Negotiations state
-  const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
-  const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>(initialMessages);
-  const [dealOffersMap, setDealOffersMap] = useState<Record<string, DealOffer[]>>(initialDealOffers);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>("conv-1");
 
   const fetchAndSetListings = () => {
     setIsLoading(true);
@@ -54,6 +69,79 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     if (!propListings) {
       fetchAndSetListings();
     }
+
+    // 1. Cross-tab listing sync via BroadcastChannel
+    let broadcast: BroadcastChannel | null = null;
+    let purBroadcast: BroadcastChannel | null = null;
+    try {
+      broadcast = new BroadcastChannel('ecoloop_listings_sync');
+      broadcast.onmessage = () => {
+        fetchAndSetListings();
+      };
+      purBroadcast = new BroadcastChannel('ecoloop_purchases_sync');
+      purBroadcast.onmessage = () => {
+        setPurchases(getStoredPurchases() || []);
+      };
+    } catch {
+      // ignore
+    }
+
+    // 2. Storage event listener
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key && e.key.includes('listings')) {
+        fetchAndSetListings();
+      }
+      if (e.key && e.key.includes('purchases')) {
+        setPurchases(getStoredPurchases() || []);
+      }
+    };
+    // 3. Focus / Visibility listener
+    const handleFocus = () => {
+      fetchAndSetListings();
+    };
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('storage', handleStorage);
+
+    // 4. Supabase Realtime Subscription for listings
+    let channel: any = null;
+    if (isLiveSupabaseConfigured && supabase) {
+      try {
+        channel = supabase.channel('marketplace-listings-sync')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'listings' }, () => {
+            fetchAndSetListings();
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'waste_listings' }, () => {
+            fetchAndSetListings();
+          })
+          .subscribe();
+      } catch (err) {
+        console.warn("Realtime listing channel error:", err);
+      }
+    }
+
+    // 5. Periodic sync fallback for cross-browser synchronization
+    const syncInterval = setInterval(() => {
+      fetchActiveListings().then(fetchedListings => {
+        if (fetchedListings && fetchedListings.length > 0) {
+          setAllListings(prev => {
+            if (prev.length !== fetchedListings.length) return fetchedListings;
+            const prevKeys = prev.map(p => `${p.id}-${p.remainingQuantity}`).sort().join(',');
+            const nextKeys = fetchedListings.map(p => `${p.id}-${p.remainingQuantity}`).sort().join(',');
+            if (prevKeys !== nextKeys) return fetchedListings;
+            return prev;
+          });
+        }
+      }).catch(() => {});
+    }, 2500);
+
+    return () => {
+      if (broadcast) broadcast.close();
+      if (purBroadcast) purBroadcast.close();
+      clearInterval(syncInterval);
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', handleFocus);
+      if (channel && supabase) supabase.removeChannel(channel);
+    };
   }, [propListings]);
 
   // Seller Action: Mark as Sold Handler
@@ -88,7 +176,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       buyer: buyer,
     };
 
-    setPurchases((prev) => [newPurchase, ...prev]);
+    savePurchaseRecord(newPurchase);
+    setPurchases((prev) => [newPurchase, ...prev.filter(p => p.id !== newPurchase.id)]);
 
     setAllListings((prev) =>
       prev.map((item) => {
@@ -127,8 +216,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     );
   };
 
-  const [activeTab, setActiveTab] = useState<"marketplace" | "dashboard" | "messages" | "list-waste">("marketplace");
-  const [selectedCategory, setSelectedCategory] = useState<string>("All Categories");
+  const [activeTab, setActiveTab] = useState<"marketplace" | "dashboard" | "messages" | "list-waste" | "notifications">("marketplace");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(["All Categories"]);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [locationQuery, setLocationQuery] = useState<string>("");
   const [minPrice, setMinPrice] = useState<string>("");
@@ -140,6 +229,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [currentUserIndex, setCurrentUserIndex] = useState<number>(0);
 
+  const handleToggleCategory = (cat: string) => {
+    if (cat === "All Categories") {
+      setSelectedCategories(["All Categories"]);
+      return;
+    }
+    setSelectedCategories((prev) => {
+      const withoutAll = prev.filter((c) => c !== "All Categories");
+      const exists = withoutAll.includes(cat);
+      const next = exists ? withoutAll.filter((c) => c !== cat) : [...withoutAll, cat];
+      return next.length === 0 ? ["All Categories"] : next;
+    });
+  };
+
   // List Waste Modal state
   const [isListWasteModalOpen, setIsListWasteModalOpen] = useState(false);
   const [editingListing, setEditingListing] = useState<WasteListing | null>(null);
@@ -148,17 +250,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [isMakeOfferModalOpen, setIsMakeOfferModalOpen] = useState(false);
   const [offerListing, setOfferListing] = useState<WasteListing | null>(null);
 
+  // Instant Buy Modal state
+  const [isInstantBuyModalOpen, setIsInstantBuyModalOpen] = useState(false);
+  const [buyListing, setBuyListing] = useState<WasteListing | null>(null);
+
   // Active user representation (fallback to mock profiles if custom DB profile missing)
   const activeUser: UserProfile = useMemo(() => {
-    if (profile) {
+    const fullName = profile?.full_name || user?.user_metadata?.full_name || (user?.email ? user.email.split("@")[0] : "User");
+    const companyName = (profile as any)?.business_name || (profile as any)?.company || user?.user_metadata?.business_name || fullName;
+    if (profile || user) {
       return {
-        id: profile.auth_user_id || user?.id || "user-1",
-        name: profile.full_name || user?.email?.split("@")[0] || "EcoLoop User",
-        company: (profile as any).business_name || "",
-        role: (profile as any).account_type || "individual",
-        email: profile.email || user?.email || "",
-        location: `${profile.city || "Chennai"}, ${profile.state || "Tamil Nadu"}`,
-        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+        id: profile?.auth_user_id || user?.id || "user-1",
+        name: fullName,
+        company: companyName,
+        role: (profile as any)?.account_type || user?.user_metadata?.account_type || "individual",
+        email: profile?.email || user?.email || "",
+        location: `${profile?.city || "Chennai"}, ${profile?.state || "Tamil Nadu"}`,
+        avatar: profile?.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
       };
     }
     return currentUserProfiles[currentUserIndex] || currentUserProfiles[0];
@@ -192,7 +300,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   const handleResetFilters = () => {
-    setSelectedCategory("All Categories");
+    setSelectedCategories(["All Categories"]);
     setSearchQuery("");
     setLocationQuery("");
     setMinPrice("");
@@ -265,7 +373,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         isPriceNegotiable: listingData.isPriceNegotiable ?? true,
         description: listingData.description || "",
         seller: listingData.seller || {
-          id: activeUser.id || "user-seller-1",
+          id: activeUser.id || "seller-1",
           name: activeUser.name || "Seller",
           company: activeUser.company || "",
         },
@@ -278,174 +386,34 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   // Chat & Messaging Handlers
-  const handleStartChat = (listing: WasteListing) => {
-    let existing = conversations.find((c) => c.listingId === listing.id);
-    let convId = existing?.id;
-
-    if (!existing) {
-      convId = `conv-${Date.now()}`;
-      const newConv: Conversation = {
-        id: convId,
-        listingId: listing.id,
-        listingTitle: listing.title,
-        listingImage: listing.images[0],
-        listingPrice: `${listing.currency}${listing.pricePerUnit.toLocaleString("en-IN")} / ${listing.unit}`,
-        buyer: {
-          id: activeUser.id,
-          name: activeUser.name,
-          company: activeUser.company,
-        },
-        seller: {
-          id: listing.seller.id,
-          name: listing.seller.name,
-          company: listing.seller.company,
-        },
-        lastMessage: "Inquiry regarding waste listing specifications.",
-        lastMessageTime: "Just now",
-        unreadCount: 0,
-      };
-
-      setConversations((prev) => [newConv, ...prev]);
-      setMessagesMap((prev) => ({
-        ...prev,
-        [convId]: [
-          {
-            id: `msg-${Date.now()}`,
-            conversationId: convId,
-            senderId: activeUser.id,
-            senderName: activeUser.name,
-            senderRole: (activeUser.role || "buyer") as any,
-            text: `Hello ${listing.seller.name}, I am interested in purchasing ${listing.title}.`,
-            timestamp: "Just now",
-          },
-        ],
-      }));
-    }
-
-    setActiveConversationId(convId);
+  const handleStartChat = async (listing: WasteListing) => {
+    await startConversation(listing, activeUser.id, activeUser.name, activeUser.company, `Hello ${listing.seller.name}, I am interested in inquiring about ${listing.title}.`);
     setSelectedListing(null);
     setActiveTab("messages");
   };
 
-  const handleSendMessage = (conversationId: string, text: string) => {
-    const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const newMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      conversationId,
-      senderId: activeUser.id,
-      senderName: activeUser.name,
-      senderRole: (activeUser.role || "buyer") as any,
-      text,
-      timestamp: timeStr,
-    };
-
-    setMessagesMap((prev) => ({
-      ...prev,
-      [conversationId]: [...(prev[conversationId] || []), newMsg],
-    }));
-
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === conversationId
-          ? { ...c, lastMessage: text, lastMessageTime: timeStr }
-          : c
-      )
-    );
-  };
-
   const handleAcceptOffer = (offer: DealOffer) => {
-    // 1. Update deal offer status to Accepted
-    setDealOffersMap((prev) => {
-      const next = { ...prev };
-      for (const key in next) {
-        next[key] = next[key].map((o) => (o.id === offer.id ? { ...o, status: "Accepted" } : o));
-      }
-      return next;
-    });
-
-    // 2. Find target listing and apply sale updates
+    acceptOffer(offer);
     const targetListing = allListings.find((l) => l.id === offer.listingId || l.title === offer.listingTitle);
     if (targetListing) {
-      const convMatch = conversations.find((c) => c.listingId === targetListing.id || (dealOffersMap[c.id] || []).some((o) => o.id === offer.id));
       const buyerParty: PartyDetails = {
         id: offer.buyerId,
-        name: offer.buyerName || convMatch?.buyer.name || "Karthik Sundaram",
-        company: convMatch?.buyer.company || "TN Metal & Polymer Recyclers Pvt Ltd",
-        email: "karthik@tnrecyclers.in",
-        phone: "+91 98401 23456",
-        location: "Guindy Industrial Estate, Chennai, Tamil Nadu",
+        name: offer.buyerName,
+        company: "Buyer Company",
+        email: "buyer@example.com",
+        phone: "+91 00000 00000",
+        location: "Unknown",
       };
       handleMarkAsSold(targetListing, buyerParty, offer.quantity, offer.offeredPricePerUnit);
-    }
-
-    // 3. Post system message into active chat
-    if (activeConversationId) {
-      const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      const sysMsg: ChatMessage = {
-        id: `sys-${Date.now()}`,
-        conversationId: activeConversationId,
-        senderId: "system",
-        senderName: "EcoLoop System",
-        senderRole: "system",
-        text: `Deal Accepted! ${offer.quantity} ${offer.unit}s purchased for ${offer.currency}${offer.totalAmount.toLocaleString("en-IN")}. Inventory updated and order logged.`,
-        timestamp: timeStr,
-      };
-
-      setMessagesMap((prev) => ({
-        ...prev,
-        [activeConversationId]: [...(prev[activeConversationId] || []), sysMsg],
-      }));
     }
   };
 
   const handleRejectOffer = (offer: DealOffer) => {
-    setDealOffersMap((prev) => {
-      const next = { ...prev };
-      for (const key in next) {
-        next[key] = next[key].map((o) => (o.id === offer.id ? { ...o, status: "Rejected" } : o));
-      }
-      return next;
-    });
-
-    if (activeConversationId) {
-      const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      const sysMsg: ChatMessage = {
-        id: `sys-${Date.now()}`,
-        conversationId: activeConversationId,
-        senderId: "system",
-        senderName: "EcoLoop System",
-        senderRole: "system",
-        text: `Offer of ${offer.currency}${offer.offeredPricePerUnit}/${offer.unit} declined by user.`,
-        timestamp: timeStr,
-      };
-
-      setMessagesMap((prev) => ({
-        ...prev,
-        [activeConversationId]: [...(prev[activeConversationId] || []), sysMsg],
-      }));
-    }
+    rejectOffer(offer);
   };
 
-  // Delete Conversation / Chat History Handler
   const handleDeleteConversation = (conversationId: string) => {
-    setConversations((prev) => prev.filter((c) => c.id !== conversationId));
-    setMessagesMap((prev) => {
-      const next = { ...prev };
-      delete next[conversationId];
-      return next;
-    });
-    setDealOffersMap((prev) => {
-      const next = { ...prev };
-      delete next[conversationId];
-      return next;
-    });
-    setActiveConversationId((prev) => {
-      if (prev === conversationId) {
-        const remaining = conversations.filter((c) => c.id !== conversationId);
-        return remaining.length > 0 ? remaining[0].id : null;
-      }
-      return prev;
-    });
+    deleteConversation(conversationId);
   };
 
   // Buyer Purchasing / Make Offer flow
@@ -454,51 +422,73 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     setIsMakeOfferModalOpen(true);
   };
 
-  const handleSubmitOffer = (
+  const handleOpenBuyModal = (listing: WasteListing) => {
+    setBuyListing(listing);
+    setIsInstantBuyModalOpen(true);
+  };
+
+  const handleConfirmDirectPurchase = async (
     listing: WasteListing,
     quantity: number,
-    pricePerUnit: number,
-    notes?: string,
-    incoterm?: string
+    unitPrice: number,
+    deliveryNotes?: string
   ) => {
-    // 1. Ensure conversation thread exists for this listing
-    let existingConv = conversations.find((c) => c.listingId === listing.id);
-    let convId = existingConv?.id;
+    const buyerParty: PartyDetails = {
+      id: activeUser.id,
+      name: activeUser.name,
+      company: activeUser.company || activeUser.name,
+      email: activeUser.email || "buyer@example.com",
+      phone: "+91 00000 00000",
+      location: activeUser.location,
+    };
 
-    if (!existingConv) {
-      convId = `conv-${Date.now()}`;
-      existingConv = {
-        id: convId,
-        listingId: listing.id,
-        listingTitle: listing.title,
-        listingImage: listing.images[0] || "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80",
-        listingPrice: `${listing.currency || "₹"}${listing.pricePerUnit.toLocaleString("en-IN")} / ${listing.unit}`,
-        buyer: {
-          id: activeUser.id,
-          name: activeUser.name,
-          company: activeUser.company,
-        },
-        seller: {
-          id: listing.seller.id,
-          name: listing.seller.name,
-          company: listing.seller.company,
-        },
-        lastMessage: "Submitted deal offer.",
-        lastMessageTime: "Just now",
-        unreadCount: 0,
-      };
-      setConversations((prev) => [existingConv!, ...prev]);
-    }
+    handleMarkAsSold(listing, buyerParty, quantity, unitPrice);
 
-    const offerId = `offer-${Date.now()}`;
-    const newOffer: DealOffer = {
-      id: offerId,
+    const convId = await startConversation(listing, activeUser.id, activeUser.name, activeUser.company);
+    
+    // Create direct buy offer in Pending status
+    const buyOffer: DealOffer = {
+      id: `buy-${Date.now()}`,
+      conversationId: convId,
       listingId: listing.id,
       listingTitle: listing.title,
       buyerId: activeUser.id,
       buyerName: activeUser.name,
       sellerId: listing.seller.id,
       sellerName: listing.seller.name,
+      quantity,
+      unit: listing.unit || "Ton",
+      offeredPricePerUnit: unitPrice,
+      totalAmount: quantity * unitPrice,
+      currency: listing.currency || "₹",
+      status: "Pending",
+      createdAt: new Date().toISOString(),
+      notes: deliveryNotes || "Direct Buy Request for Whole / Selected Lot",
+    };
+    sendOffer(buyOffer);
+  };
+
+  const handleSubmitOffer = async (
+    listing: WasteListing,
+    quantity: number,
+    pricePerUnit: number,
+    notes?: string,
+    incoterm?: string
+  ) => {
+    setIsMakeOfferModalOpen(false);
+    const convId = await startConversation(listing, activeUser.id, activeUser.name, activeUser.company);
+
+    const offerId = `offer-${Date.now()}`;
+    const newOffer: DealOffer = {
+      id: offerId,
+      conversationId: convId,
+      listingId: listing.id,
+      listingTitle: listing.title,
+      buyerId: activeUser.id,
+      buyerName: activeUser.name,
+      sellerId: listing.seller.id,
+      sellerName: listing.seller.name,
+      senderId: activeUser.id,
       offeredPricePerUnit: pricePerUnit,
       quantity,
       unit: listing.unit || "Ton",
@@ -510,45 +500,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       notes: notes || "",
     };
 
-    // Store in dealOffersMap
-    setDealOffersMap((prev) => ({
-      ...prev,
-      [convId]: [...(prev[convId] || []), newOffer],
-    }));
-
-    // Transmit offer as embedded message in chat thread matching exact production design
-    const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const offerMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      conversationId: convId,
-      senderId: activeUser.id,
-      senderName: activeUser.name,
-      senderRole: (activeUser.role || "buyer") as any,
-      text: "I have officially submitted a formal offer via EcoLoop Deal Shield below:",
-      timestamp: timeStr,
-      offerId: offerId,
-      offer: newOffer,
-    };
-
-    setMessagesMap((prev) => ({
-      ...prev,
-      [convId]: [...(prev[convId] || []), offerMsg],
-    }));
-
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === convId
-          ? {
-              ...c,
-              lastMessage: `Formal offer submitted: ${quantity} ${listing.unit || "Ton"}s at ${listing.currency || "₹"}${pricePerUnit}/${listing.unit || "Ton"}`,
-              lastMessageTime: timeStr,
-            }
-          : c
-      )
-    );
+    // Actually send the offer through the communication context
+    await sendOffer(newOffer);
 
     // Close modal, reset selected listing, select active conversation thread, and switch to Messages tab immediately
-    setIsMakeOfferModalOpen(false);
     setSelectedListing(null);
     setActiveConversationId(convId);
     setActiveTab("messages");
@@ -563,9 +518,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         item.totalQuantity > 0
     );
 
-    if (selectedCategory !== "All Categories") {
-      result = result.filter(
-        (item) => item.category.toLowerCase() === selectedCategory.toLowerCase()
+    if (selectedCategories.length > 0 && !selectedCategories.includes("All Categories")) {
+      result = result.filter((item) =>
+        selectedCategories.some((cat) => cat.toLowerCase() === item.category.toLowerCase())
       );
     }
 
@@ -615,7 +570,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     }
 
     return result;
-  }, [allListings, selectedCategory, searchQuery, locationQuery, minPrice, maxPrice, minQuantity, maxQuantity, sortBy]);
+  }, [allListings, selectedCategories, searchQuery, locationQuery, minPrice, maxPrice, minQuantity, maxQuantity, sortBy]);
 
   // If a listing is selected, render ListingDetailPage
   if (selectedListing) {
@@ -632,7 +587,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           onNavigateToSell={() => onNavigateToAuth?.('sell')}
           currentUser={activeUser}
           onSwitchUser={handleSwitchUser}
-          unreadCount={1}
+          unreadMessageCount={unreadMessageCount}
+          unreadNotificationCount={unreadNotificationCount}
           onLogout={handleLogout}
         />
         <ListingDetailPage
@@ -640,11 +596,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           onBack={() => setSelectedListing(null)}
           onStartChat={handleStartChat}
           onOpenMakeOffer={handleOpenMakeOffer}
+          onOpenBuyModal={handleOpenBuyModal}
           isFavorite={favorites.has(selectedListing.id)}
           onToggleFavorite={(id) => handleToggleFavorite(id)}
           currentUser={activeUser}
         />
-        {/* ListWasteModal temporarily removed */}
+        {/* Modals */}
         <MakeOfferModal
           isOpen={isMakeOfferModalOpen}
           onClose={() => setIsMakeOfferModalOpen(false)}
@@ -652,6 +609,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           listing={offerListing}
           currentUser={activeUser}
         />
+        {buyListing && (
+          <InstantBuyModal
+            isOpen={isInstantBuyModalOpen}
+            onClose={() => setIsInstantBuyModalOpen(false)}
+            listing={buyListing}
+            currentUser={activeUser}
+            onConfirmPurchase={handleConfirmDirectPurchase}
+          />
+        )}
       </div>
     );
   }
@@ -682,12 +648,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         onNavigateToSell={() => onNavigateToAuth?.('sell')}
         currentUser={activeUser}
         onSwitchUser={handleSwitchUser}
-        unreadCount={1}
+        unreadMessageCount={unreadMessageCount}
+        unreadNotificationCount={unreadNotificationCount}
         onLogout={handleLogout}
       />
 
-      {/* Main Container */}
-      <main id="landing-page" className="flex-1 w-full px-4 sm:px-6 lg:px-10 py-6 space-y-6">
+      {/* Main Container without awkward side margins or extra scrolls */}
+      <main id="landing-page" className="flex-1 w-full max-w-[1700px] mx-auto px-3 sm:px-6 py-4 space-y-4">
         {activeTab === "dashboard" ? (
           <DashboardPage
             listings={allListings}
@@ -706,30 +673,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           />
         ) : activeTab === "messages" ? (
           <MessagesPage
-            conversations={conversations}
-            activeConversationId={activeConversationId}
-            onSelectConversation={(id) => setActiveConversationId(id)}
-            messages={messagesMap}
-            onSendMessage={handleSendMessage}
-            dealOffers={dealOffersMap}
-            onAcceptOffer={handleAcceptOffer}
-            onRejectOffer={handleRejectOffer}
             onOpenMakeOffer={handleOpenMakeOffer}
             onOpenListingSpecs={(listingId) => {
               const match = allListings.find((l) => l.id === listingId);
               if (match) setSelectedListing(match);
             }}
-            onDeleteConversation={handleDeleteConversation}
             listings={allListings}
             currentUser={activeUser}
           />
+        ) : activeTab === "notifications" ? (
+          <NotificationsPage />
         ) : (
           /* Marketplace View */
-          <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
+          <div className="flex flex-col lg:flex-row gap-5 items-start w-full">
             {/* Left Sidebar Filter */}
             <SidebarFilter
-              selectedCategory={selectedCategory}
-              onSelectCategory={setSelectedCategory}
+              selectedCategories={selectedCategories}
+              onToggleCategory={handleToggleCategory}
               locationQuery={locationQuery}
               onLocationChange={setLocationQuery}
               minPrice={minPrice}
@@ -753,9 +713,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     {filteredListings.length}
                   </strong>{" "}
                   waste listings in Tamil Nadu
-                  {selectedCategory !== "All Categories" && (
+                  {!selectedCategories.includes("All Categories") && selectedCategories.length > 0 && (
                     <span className="ml-1 text-emerald-800 font-medium">
-                      • {selectedCategory}
+                      • {selectedCategories.join(", ")}
                     </span>
                   )}
                 </div>
@@ -808,6 +768,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     <ListingCard
                       key={listing.id}
                       listing={listing}
+                      currentUser={activeUser}
                       onSelect={(item) => setSelectedListing(item)}
                       isFavorite={favorites.has(listing.id)}
                       onToggleFavorite={(id, e) => handleToggleFavorite(id, e)}
@@ -829,6 +790,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         listing={offerListing}
         currentUser={activeUser}
       />
+      {buyListing && (
+        <InstantBuyModal
+          isOpen={isInstantBuyModalOpen}
+          onClose={() => setIsInstantBuyModalOpen(false)}
+          listing={buyListing}
+          currentUser={activeUser}
+          onConfirmPurchase={handleConfirmDirectPurchase}
+        />
+      )}
     </div>
   );
 };

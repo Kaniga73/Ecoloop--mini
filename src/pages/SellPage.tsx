@@ -409,8 +409,19 @@ CRITICAL RULES:
         finalImages.unshift(primary);
       }
 
+      const sellerFullName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Seller';
+      const sellerBusinessName = (profile as any)?.business_name || sellerFullName;
+      const sellerAccountType = (profile as any)?.account_type || user?.user_metadata?.account_type || 'individual';
+      const sellerEmailAddr = profile?.email || user?.email || '';
+      const sellerLocation = `${city || profile?.city || ''}, ${state || profile?.state || ''}`.replace(/^, |, $/g, '');
+
       const listingData = {
         seller_id: user.id,
+        seller_name: sellerFullName,
+        seller_company: sellerAccountType === 'business' ? sellerBusinessName : sellerFullName,
+        seller_email: sellerEmailAddr,
+        seller_account_type: sellerAccountType,
+        seller_location: sellerLocation,
         title,
         category: category === "Other" ? otherCategory : category,
         subcategory,

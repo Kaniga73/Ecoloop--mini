@@ -130,7 +130,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return false;
   });
 
-  const myListings = userMyListings.length > 0 ? userMyListings : listings;
+  const myListings = userMyListings;
 
   const activeListings = myListings.filter((l) => l.status === "available" && (l.remainingQuantity === undefined || l.remainingQuantity > 0));
   const soldListings = myListings.filter((l) => l.status === "sold" || (l.remainingQuantity !== undefined && l.remainingQuantity <= 0));
