@@ -188,6 +188,14 @@ export interface WasteListing {
   manufacturingYear?: string;
   condition?: string;
   aiSuggestions?: {
+    is_waste?: boolean;
+    waste_type?: string;
+    category?: string;
+    confidence?: number;
+    hazard_status?: string;
+    tip?: string;
+    top_3?: Array<{ category: string; confidence: number }>;
+    low_confidence?: boolean;
     isValidWaste?: boolean;
     isHuman?: boolean;
     rejectionReason?: string;

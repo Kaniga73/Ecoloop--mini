@@ -1,17 +1,43 @@
-
 # EcoLoop Web Application
 
 This repository contains the EcoLoop frontend and authentication service.
 
 ## Tech Stack
 - **Frontend**: React 19, Vite, TailwindCSS
-- **Backend / Authentication**: Supabase (Auth, Database, RLS)
-- **Language**: TypeScript
+- **Backend / Authentication**: Express, Supabase (Auth, Database, RLS)
+- **AI Service**: Python FastAPI, PyTorch, Hugging Face Transformers (OpenAI CLIP ViT-B/32)
+- **Language**: TypeScript, Python
 - **Icons / Animation**: Lucide React, Motion
 
-## Run Locally
+---
 
-**Prerequisites:** Node.js 18+
+## Running the Services
+
+### 1. Python AI Service (CLIP Waste Classification)
+
+The AI service runs locally using FastAPI and the open-source OpenAI CLIP model (`openai/clip-vit-base-patch32`) for zero-shot image classification, hazard determination, and human rejection.
+
+> **Note:** On the very first run, Hugging Face will automatically download the CLIP model weights (~600 MB) once. Subsequent runs use the cached model directly.
+
+1. Navigate to the `ai-service` directory:
+   ```bash
+   cd ai-service
+   ```
+
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Start the FastAPI server:
+   ```bash
+   uvicorn main:app --reload
+   ```
+   The AI service will be available at `http://localhost:8000`.
+
+---
+
+### 2. Backend & Frontend Application
 
 1. Install dependencies:
    ```bash
@@ -24,7 +50,7 @@ This repository contains the EcoLoop frontend and authentication service.
    cp .env.example .env
    ```
    You will need to provide:
-   - `GEMINI_API_KEY`: Your Gemini API key.
+   - `AI_SERVICE_URL`: URL of the Python AI service (default: `http://localhost:8000`).
    - `VITE_SUPABASE_URL`: Your Supabase Project URL.
    - `VITE_SUPABASE_ANON_KEY`: Your Supabase Project Anon Key.
 
@@ -32,14 +58,16 @@ This repository contains the EcoLoop frontend and authentication service.
    ```bash
    npm run dev
    ```
-   This will start both the Vite development server and the backend express server concurrently.
+   This starts both the Vite frontend development server and the Express backend API server concurrently.
+
+---
 
 ## Supabase Configuration & OTP Setup
 
 1. **Database Schema Setup**
    - Go to your Supabase Dashboard.
    - Navigate to the **SQL Editor** tab.
-   - Copy the contents of [`supabase/schema.sql`](supabase/schema.sql) and run it to create the `user_profiles` table, its types, policies, and triggers.
+   - Copy the contents of [`schema.sql`](schema.sql) and run it to create the `user_profiles` table, its types, policies, and triggers.
 
 2. **OTP for User Signups**
    - In your Supabase Dashboard, navigate to **Authentication** > **Providers** > **Email**.

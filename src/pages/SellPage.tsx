@@ -29,7 +29,6 @@ import {
   createWasteListing,
   updateWasteListing
 } from "../lib/listingsService";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 interface SellPageProps {
   onNavigate: (view: AuthView | "back") => void;
@@ -133,6 +132,30 @@ export const SellPage: React.FC<SellPageProps> = ({
     "Organic / Bio Waste",
     "Other",
   ];
+
+  const AI_CATEGORY_MAP: Record<string, string> = {
+    "plastic waste": "Industrial Plastics",
+    "paper waste": "Other",
+    "cardboard waste": "Other",
+    "glass waste": "Other",
+    "metal waste": "Scrap Metal",
+    "organic waste": "Organic / Bio Waste",
+    "e-waste": "E-Waste",
+    "textile waste": "Textiles & Fibers",
+    "rubber waste": "Rubber & Tyres",
+    "wood waste": "Other",
+    "battery waste": "E-Waste",
+    "medical waste": "Chemical Byproducts",
+    "chemical waste": "Chemical Byproducts",
+    "construction waste": "Construction & Demolition",
+    "ceramic waste": "Construction & Demolition",
+    "leather waste": "Textiles & Fibers",
+    "garden waste": "Organic / Bio Waste",
+    "food packaging waste": "Industrial Plastics",
+    "mixed waste": "Other",
+    "general residual waste": "Other",
+    "other waste": "Other",
+  };
 
   const updateField = (setter: React.Dispatch<React.SetStateAction<any>>, fieldName: string, value: any) => {
     setter(value);
@@ -252,130 +275,97 @@ export const SellPage: React.FC<SellPageProps> = ({
     setCurrentStep(2); 
 
     try {
-      let base64Image = "";
-      let mimeType = "image/jpeg";
-      if (images.length > 0) {
-        const file = images[0];
-        mimeType = file.type || "image/jpeg";
-        const reader = new FileReader();
-        base64Image = await new Promise((resolve) => {
-          reader.onload = (e) => resolve(e.target?.result as string);
-          reader.readAsDataURL(file);
-        });
-      }
-      
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (import.meta.env as any).GEMINI_API_KEY;
-      if (!apiKey) throw new Error("Gemini API key is not configured. Please verify your environment settings.");
-
-      const genAI = new GoogleGenerativeAI(apiKey);
-
-      const prompt = `Analyze this industrial or commercial waste item for EcoLoop, a B2B circular economy marketplace.
-Return ONLY a strictly valid JSON object without markdown formatting or code blocks, with these exact keys:
-{
-  "isValidWaste": true or false,
-  "isHuman": true or false,
-  "rejectionReason": "Detailed reason if image is rejected, otherwise empty string",
-  "title": "Clear, professional name of the waste item",
-  "wasteType": "Concise waste category and classification (e.g. Post-Industrial Thermoplastic, Heavy Ferrous Scrap, Hazardous Chemical Byproduct, E-Waste Circuit Boards, Bio Waste)",
-  "category": "Must be exactly one of: Scrap Metal, Industrial Plastics, Chemical Byproducts, E-Waste, Textiles & Fibers, Construction & Demolition, Rubber & Tyres, Organic / Bio Waste, Other",
-  "subcategory": "More specific subcategory or grade",
-  "isRecyclable": true or false,
-  "recyclability": "High / Medium / Low / Non-Recyclable with concise technical reason",
-  "isHazardous": true or false,
-  "hazardousReason": "Safety assessment: If hazardous, explain specific hazard (e.g., flammable solvents, corrosive acid, toxic heavy metals); if non-hazardous, specify 'Non-hazardous inert material'",
-  "brand": "Extract if category is E-Waste or industrial equipment (otherwise empty string)",
-  "modelCode": "Extract if category is E-Waste or industrial equipment (otherwise empty string)",
-  "material": "Primary chemical or material composition",
-  "condition": "Must be exactly one of: New, Good, Fair, Mixed, Processed",
-  "description": "2-3 sentences describing industrial composition, consistency, and potential secondary market value",
-  "reusability": "High / Medium / Low with concise reason",
-  "suggestedPriceRange": "Estimated price range in INR (e.g. ₹35,000 - ₹45,000 / Tonne or ₹80 - ₹120 / Kg)",
-  "tags": ["tag1", "tag2"],
-  "potentialBuyers": "Types of industrial recyclers or processors that would buy this",
-  "whatCanIDoWithThis": "Bullet points on circular second-life applications"
-}
-
-CRITICAL RULES:
-1. FIRST inspect if the image contains a human, person, selfie, portrait, face, or anything that is clearly NOT industrial waste or recyclable goods.
-   If a human or non-waste image is detected:
-   Set "isValidWaste": false
-   Set "isHuman": true
-   Set "rejectionReason": "Human detected in image. EcoLoop only accepts industrial scrap, recyclable materials, and commercial byproducts. Please upload a photo of the actual waste item."
-2. Explicitly determine if the item is recyclable ("isRecyclable": true/false) and whether it is hazardous ("isHazardous": true/false).`;
-
-      let result;
-      const modelsToTry = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest", "gemini-pro-latest"];
-      let lastError;
-
-      for (const modelName of modelsToTry) {
+      let fileToSend: File | Blob | null = images.length > 0 ? images[0] : null;
+      if (!fileToSend && imageUrls.length > 0) {
         try {
-          const model = genAI.getGenerativeModel({ model: modelName });
-          if (base64Image) {
-            const base64Data = base64Image.split(",")[1];
-            result = await model.generateContent([
-              prompt,
-              { inlineData: { data: base64Data, mimeType: mimeType || "image/jpeg" } }
-            ]);
-          } else {
-            result = await model.generateContent(prompt);
-          }
-          if (result) break;
-        } catch (e: any) {
-          lastError = e;
-          console.warn(`Model ${modelName} failed:`, e?.message || e);
+          const res = await fetch(imageUrls[0]);
+          fileToSend = await res.blob();
+        } catch (e) {
+          console.warn("Could not retrieve image preview as blob:", e);
         }
       }
 
-      if (!result) {
-        throw lastError || new Error("All fallback models failed.");
+      if (!fileToSend) {
+        throw new Error("No image file available to analyze. Please upload an image.");
       }
 
-      const responseText = result.response.text();
-      let cleanedJson = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
-      const startIndex = cleanedJson.indexOf('{');
-      const endIndex = cleanedJson.lastIndexOf('}');
-      if (startIndex !== -1 && endIndex !== -1) {
-        cleanedJson = cleanedJson.substring(startIndex, endIndex + 1);
-      }
-      const parsed = JSON.parse(cleanedJson);
+      const formData = new FormData();
+      formData.append("image", fileToSend, (fileToSend as File).name || "waste_image.jpg");
 
-      // Human or Invalid Waste Validation
-      if (parsed.isHuman === true || parsed.isValidWaste === false) {
-        const reason = parsed.rejectionReason || "Human or invalid non-waste item detected in the image. Please upload a clear photo of waste, scrap, or recyclable materials.";
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        let errData: any;
+        try {
+          errData = await response.json();
+        } catch {
+          errData = { error: `Server error: ${response.status} ${response.statusText}` };
+        }
+        const errorMsg =
+          errData?.details?.detail ||
+          errData?.error ||
+          errData?.message ||
+          "AI analysis failed. Please ensure the Python AI service is running.";
+        throw new Error(typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg));
+      }
+
+      const parsed = await response.json();
+
+      // Human or Invalid Waste Validation: show alert message in red and do not show any result
+      if (parsed.is_waste === false) {
+        const reason = parsed.alert || "Human image detected. This system supports only waste images.";
         setValidationError(reason);
+        setAiSuggestions(null);
         setIsAnalyzing(false);
         setCurrentStep(previousStep === 2 ? 2 : 1);
         return;
       }
 
+      // Successful analysis: store result
       setAiSuggestions(parsed);
       setValidationError(null);
-      
-      if (!title && parsed.title) { setTitle(parsed.title); setFieldOrigins(p => ({...p, title: 'ai'})); }
-      if (!category && categories.includes(parsed.category)) { setCategory(parsed.category); setFieldOrigins(p => ({...p, category: 'ai'})); }
-      if (!subcategory && parsed.subcategory) { setSubcategory(parsed.subcategory); setFieldOrigins(p => ({...p, subcategory: 'ai'})); }
-      if (!brand && parsed.brand) { setBrand(parsed.brand); setFieldOrigins(p => ({...p, brand: 'ai'})); }
-      if (!modelCode && parsed.modelCode) { setModelCode(parsed.modelCode); setFieldOrigins(p => ({...p, modelCode: 'ai'})); }
-      if (!material && parsed.material) { setMaterial(parsed.material); setFieldOrigins(p => ({...p, material: 'ai'})); }
-      if (!condition && parsed.condition) { setCondition(parsed.condition); setFieldOrigins(p => ({...p, condition: 'ai'})); }
-      if (!description && parsed.description) { setDescription(parsed.description); setFieldOrigins(p => ({...p, description: 'ai'})); }
-      
-      if (parsed.wasteType) setWasteType(parsed.wasteType);
-      if (parsed.recyclability) setRecyclability(parsed.recyclability);
-      if (typeof parsed.isRecyclable === 'boolean') {
-        setIsRecyclable(parsed.isRecyclable);
-      } else if (parsed.recyclability) {
-        setIsRecyclable(!parsed.recyclability.toLowerCase().includes("non"));
+
+      // Autofill fields without overwriting user-entered data
+      if (parsed.waste_type) {
+        setWasteType(parsed.waste_type);
+        if (!title) {
+          setTitle(parsed.waste_type);
+          setFieldOrigins((p) => ({ ...p, title: "ai" }));
+        }
       }
 
-      if (typeof parsed.isHazardous === 'boolean') {
-        setHazardousMaterial(parsed.isHazardous);
-        setFieldOrigins(p => ({...p, hazardous: 'ai'}));
+      const rawCategory = parsed.category ? parsed.category.toLowerCase() : "";
+      const mappedCategory = AI_CATEGORY_MAP[rawCategory] || "Other";
+      if (!category && mappedCategory) {
+        setCategory(mappedCategory);
+        setFieldOrigins((p) => ({ ...p, category: "ai" }));
       }
-      if (parsed.hazardousReason) setHazardousReason(parsed.hazardousReason);
-      if (parsed.reusability) setReusability(parsed.reusability);
-      if (parsed.whatCanIDoWithThis) setAiInsights(parsed.whatCanIDoWithThis);
-      
+
+      if (typeof parsed.recyclable === "boolean") {
+        setIsRecyclable(parsed.recyclable);
+        setRecyclability(parsed.recyclable ? "High recovery potential" : "Non-Recyclable");
+      }
+
+      const isHazardous = parsed.hazard_status === "Possibly hazardous";
+      setHazardousMaterial(isHazardous);
+      setFieldOrigins((p) => ({ ...p, hazardous: "ai" }));
+
+      if (isHazardous && !hazardousReason && parsed.tip) {
+        setHazardousReason(parsed.tip);
+      }
+
+      if (!description && parsed.tip) {
+        setDescription(parsed.tip);
+        setFieldOrigins((p) => ({ ...p, description: "ai" }));
+      }
+
+      if (parsed.tip) {
+        setAiInsights(parsed.tip);
+      }
+
     } catch (err: any) {
       console.error("AI Analysis failed:", err);
       const errMsg = err?.message || "AI Analysis failed. Please check your image or fill details manually.";
@@ -435,12 +425,17 @@ CRITICAL RULES:
         ],
         ai_suggestions: {
           ...(aiSuggestions || {}),
-          wasteType: wasteType || category,
-          isRecyclable: isRecyclable ?? true,
+          waste_type: wasteType || aiSuggestions?.waste_type || category,
+          wasteType: wasteType || aiSuggestions?.waste_type || category,
+          category: aiSuggestions?.category || category,
+          isRecyclable: isRecyclable ?? (aiSuggestions?.recyclable ?? true),
+          recyclable: isRecyclable ?? (aiSuggestions?.recyclable ?? true),
           recyclability: recyclability || (isRecyclable === false ? "Non-Recyclable" : "High recovery potential"),
           isHazardous: hazardousMaterial,
-          hazardousReason,
-          whatCanIDoWithThis: aiInsights,
+          hazard_status: aiSuggestions?.hazard_status || (hazardousMaterial ? "Possibly hazardous" : "Not likely hazardous"),
+          hazardousReason: hazardousReason || aiSuggestions?.tip || "",
+          tip: aiSuggestions?.tip || hazardousReason || "",
+          whatCanIDoWithThis: aiInsights || aiSuggestions?.tip,
         },
         recyclability: recyclability || (isRecyclable === false ? "Non-Recyclable" : "High recovery potential"),
         reusability: reusability || "Direct Reuse",
@@ -961,20 +956,52 @@ CRITICAL RULES:
                     ) : null}
                   </div>
 
-                  {/* Waste Classification Badge */}
-                  <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/15 mb-3.5">
-                    <div className="text-[10px] uppercase font-bold tracking-wider text-emerald-300 mb-0.5 flex items-center gap-1.5">
-                      <Bot className="w-3.5 h-3.5 text-emerald-400" /> What Type of Waste
-                    </div>
-                    <div className="font-extrabold text-sm text-white">
-                      {wasteType || (category ? `${category} Waste` : "Industrial Waste Item")}
-                    </div>
-                    {subcategory && (
-                      <div className="text-xs text-emerald-200 font-medium mt-0.5">
-                        Grade / Subtype: {subcategory}
+                  {/* AI Analysis Result Display */}
+                  {aiSuggestions ? (
+                    <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/15 mb-3.5 space-y-2 text-xs">
+                      <div className="text-white">
+                        <span className="font-semibold text-emerald-200">Waste Type:</span>{" "}
+                        <span className="font-bold text-white">{aiSuggestions.waste_type || wasteType}</span>
                       </div>
-                    )}
-                  </div>
+                      <div className="text-white">
+                        <span className="font-semibold text-emerald-200">Confidence:</span>{" "}
+                        <span className="font-bold text-white">{Math.round((aiSuggestions.confidence ?? 0) * 100)}%</span>
+                      </div>
+                      <div className={aiSuggestions.hazard_status === "Possibly hazardous" ? "text-amber-400 font-bold" : "text-white"}>
+                        <span className="font-semibold text-emerald-200">Hazardous:</span>{" "}
+                        <span>{aiSuggestions.hazard_status || (hazardousMaterial ? "Possibly hazardous" : "Not likely hazardous")}</span>
+                      </div>
+                      <div className="text-white leading-relaxed">
+                        <span className="font-semibold text-emerald-200">Tip:</span>{" "}
+                        <span>{aiSuggestions.tip || "Handle carefully and dispose through an appropriate collection facility."}</span>
+                      </div>
+                      <div className="text-white pt-1.5 border-t border-white/10">
+                        <span className="font-semibold text-emerald-200">Recyclable:</span>{" "}
+                        <span className="font-bold text-white">{aiSuggestions.recyclable ? "Yes" : "No"}</span>
+                      </div>
+
+                      {aiSuggestions.low_confidence && (
+                        <div className="text-amber-300 text-[11px] font-medium pt-2 border-t border-amber-500/20 flex items-center gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                          <span>Low confidence - please verify the result.</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/15 mb-3.5">
+                      <div className="text-[10px] uppercase font-bold tracking-wider text-emerald-300 mb-0.5 flex items-center gap-1.5">
+                        <Bot className="w-3.5 h-3.5 text-emerald-400" /> What Type of Waste
+                      </div>
+                      <div className="font-extrabold text-sm text-white">
+                        {wasteType || (category ? `${category} Waste` : "Industrial Waste Item")}
+                      </div>
+                      {subcategory && (
+                        <div className="text-xs text-emerald-200 font-medium mt-0.5">
+                          Grade / Subtype: {subcategory}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Recyclability & Hazardous Assessment Cards */}
                   <div className="grid grid-cols-2 gap-2.5 mb-3.5">

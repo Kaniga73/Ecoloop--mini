@@ -275,13 +275,13 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({
               </div>
 
               {/* Waste Classification */}
-              {(listing.aiSuggestions?.wasteType || listing.wasteCategory) && (
+              {(listing.aiSuggestions?.wasteType || listing.aiSuggestions?.waste_type || listing.wasteCategory) && (
                 <div className="bg-emerald-950/60 px-3.5 py-2 rounded-xl border border-emerald-700/50 flex items-center justify-between">
                   <span className="text-emerald-300 text-xs font-bold flex items-center gap-1.5">
                     <Bot className="w-3.5 h-3.5 text-emerald-400" /> Waste Classification:
                   </span>
                   <span className="text-white font-bold text-xs">
-                    {listing.aiSuggestions?.wasteType || listing.wasteCategory}
+                    {listing.aiSuggestions?.wasteType || listing.aiSuggestions?.waste_type || listing.wasteCategory}
                   </span>
                 </div>
               )}
@@ -343,12 +343,12 @@ export const ListingDetailPage: React.FC<ListingDetailPageProps> = ({
               )}
 
               {/* Next Life Insights */}
-              {listing.aiSuggestions?.whatCanIDoWithThis && (
+              {(listing.aiSuggestions?.whatCanIDoWithThis || listing.aiSuggestions?.tip) && (
                 <div className="bg-emerald-950/30 p-3.5 rounded-xl border border-emerald-700/40 text-xs leading-relaxed text-emerald-100">
                   <span className="text-emerald-300 font-bold block mb-1 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Applications & Next Life:
                   </span>
-                  {listing.aiSuggestions.whatCanIDoWithThis}
+                  {listing.aiSuggestions.whatCanIDoWithThis || listing.aiSuggestions.tip}
                 </div>
               )}
             </div>
