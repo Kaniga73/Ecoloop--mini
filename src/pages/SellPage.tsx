@@ -1036,24 +1036,8 @@ export const SellPage: React.FC<SellPageProps> = ({
                           )}
                         </button>
                       </div>
-                      <div className="mt-1">
-                        <select
-                          value={recyclability || (isRecyclable === false ? "Non-Recyclable" : "High recovery potential")}
-                          onChange={(e) => {
-                            setRecyclability(e.target.value);
-                            if (e.target.value === "Non-Recyclable") {
-                              setIsRecyclable(false);
-                            } else {
-                              setIsRecyclable(true);
-                            }
-                          }}
-                          className="w-full text-[10px] bg-emerald-900/80 text-emerald-100 border border-emerald-700/80 rounded px-1.5 py-1 outline-none cursor-pointer"
-                        >
-                          <option value="High recovery potential">High recovery potential</option>
-                          <option value="Medium recovery potential">Medium recovery potential</option>
-                          <option value="Low recovery potential">Low recovery potential</option>
-                          <option value="Non-Recyclable">Non-Recyclable</option>
-                        </select>
+                      <div className="text-[10px] text-emerald-100 line-clamp-2 mt-1">
+                        {recyclability || (isRecyclable === false ? "Non-Recyclable" : "High recovery potential")}
                       </div>
                     </div>
 
@@ -1114,33 +1098,13 @@ export const SellPage: React.FC<SellPageProps> = ({
                     )}
                   </div>
 
-                  {/* Footer Meta: Reusability & Rate */}
-                  <div className="grid grid-cols-2 gap-2 pt-2.5 border-t border-emerald-700/50 mt-auto text-xs">
-                    <div>
-                      <div className="text-emerald-300 text-[9px] font-bold uppercase tracking-wider mb-1">Reusability</div>
-                      <select
-                        value={reusability || "Direct Reuse"}
-                        onChange={(e) => setReusability(e.target.value)}
-                        className="w-full text-[10px] bg-emerald-900/80 text-white font-bold border border-emerald-700/80 rounded px-1.5 py-1 outline-none cursor-pointer"
-                      >
-                        <option value="Direct Reuse">Direct Reuse</option>
-                        <option value="High">High Reusability</option>
-                        <option value="Medium">Medium Reusability</option>
-                        <option value="Low">Low Reusability</option>
-                      </select>
+                  {/* Footer Meta: Est. Market Rate */}
+                  {aiSuggestions?.suggestedPriceRange && (
+                    <div className="pt-2.5 border-t border-emerald-700/50 mt-auto text-xs flex items-center justify-between">
+                      <div className="text-emerald-300 text-[9px] font-bold uppercase tracking-wider">Est. Market Rate</div>
+                      <div className="font-extrabold text-white text-xs">{aiSuggestions.suggestedPriceRange}</div>
                     </div>
-                    {aiSuggestions?.suggestedPriceRange ? (
-                      <div>
-                        <div className="text-emerald-300 text-[9px] font-bold uppercase tracking-wider">Est. Market Rate</div>
-                        <div className="font-extrabold text-white text-xs">{aiSuggestions.suggestedPriceRange}</div>
-                      </div>
-                    ) : (
-                      <div>
-                        <div className="text-emerald-300 text-[9px] font-bold uppercase tracking-wider">Listing Mode</div>
-                        <div className="font-semibold text-emerald-200 text-xs">Manual Entry</div>
-                      </div>
-                    )}
-                  </div>
+                  )}
 
                 </div>
               </div>
